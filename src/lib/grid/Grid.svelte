@@ -108,13 +108,13 @@
 	aria-colcount={model.days.length}
 >
 	<div class="origin"></div>
-	{#each model.days as day, i (day.date)}
+	{#each model.days as day, i (i)}
 		<div class="day" role="columnheader" style:grid-column={i + 2} style:grid-row={1}>
 			<span class="wk">{day.weekday}</span>
 			<span class="num">{day.day}</span>
 		</div>
 	{/each}
-	{#each model.times as t, i (t.time)}
+	{#each model.times as t, i (i)}
 		<div class="time" role="rowheader" style:grid-column={1} style:grid-row={i + 2}>
 			{t.label}
 		</div>
