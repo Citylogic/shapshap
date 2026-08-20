@@ -57,7 +57,11 @@ function localTimes(
 	let t = start;
 	while (Temporal.PlainTime.compare(t, end) < 0) {
 		times.push(t);
-		t = t.add({ minutes: slotMinutes });
+		const next = t.add({ minutes: slotMinutes });
+		// PlainTime wraps at midnight. A wrapped next is earlier than t, so the
+		// loop condition would never fail (e.g. 08:00–23:31 with 30-min slots).
+		if (Temporal.PlainTime.compare(next, t) <= 0) break;
+		t = next;
 	}
 	return times;
 }
