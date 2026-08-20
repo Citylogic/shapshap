@@ -22,6 +22,7 @@ export function createRateLimiter(now: () => number = Date.now): RateLimiter {
 
 	return {
 		take(kind, ipKey) {
+			if (process.env.RATE_LIMIT === 'off') return true;
 			const { capacity, windowMs } = LIMITS[kind];
 			const id = `${kind}:${ipKey}`;
 			const t = now();
