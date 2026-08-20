@@ -81,9 +81,7 @@
 
 	<footer>
 		<p>No accounts. Deleted after.</p>
-		<!-- /why content is S16; a 404 here is the placeholder. -->
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-		<a href="/why">Why →</a>
+		<a href={resolve('/why')}>Why →</a>
 	</footer>
 </div>
 
