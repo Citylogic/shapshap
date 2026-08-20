@@ -1,6 +1,8 @@
 {
     email aidan@citylogic.co.za
-    servers { trusted_proxies static private_ranges }
+    servers {
+        trusted_proxies static private_ranges
+    }
 }
 
 (secure_headers) {

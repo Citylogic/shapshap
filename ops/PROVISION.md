@@ -129,4 +129,6 @@ TAG=latest
 
 `chmod 600 ~/shapshap/.env`
 
+Postgres 18 volumes mount at `/var/lib/postgresql` (not `.../data`).
+
 Do not `docker compose up` until GHCR has `ghcr.io/citylogic/shapshap:$TAG` (Stage 5).
