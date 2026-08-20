@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
 	import Grid from '$lib/grid/Grid.svelte';
 	import {
 		densityLevels,
+		displayName,
 		formatPeekWhen,
 		mergeLive,
 		peekLists,
-		scoreOverlap
+		scoreOverlap,
+		type OverlapPerson
 	} from '$lib/grid/overlap';
 	import { newId } from '$lib/ids';
 	import { NAME_MAX, parseName } from '$lib/name';
@@ -22,7 +25,11 @@
 	let selected = $state<ReadonlySet<number>>(new Set());
 	let error = $state<string | null>(null);
 	let shap = $state(false);
-	let participantId = $state(browser ? newId() : '');
+	let participantId = $state('');
+	let ephemeral = $state(true);
+	let booted = $state(false);
+	let listOpen = $state(false);
+	let picked = $state<string | null>(null);
 	let inflight = false;
 	let queued = false;
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -69,6 +76,16 @@
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
+	$effect(() => {
+		if (booted || !browser || data.status !== 'ok') return;
+		booted = true;
+		const restored = restoreVisit(data.meeting.id, data.responses, localStorage, newId);
+		participantId = restored.participantId;
+		name = restored.name;
+		selected = new Set(restored.slots);
+		ephemeral = restored.ephemeral;
+	});
+
 	function scheduleSave() {
 		clearTimeout(saveTimer);
 		saveTimer = setTimeout(() => void flushSave(), SAVE_MS);
@@ -99,6 +116,7 @@
 			});
 			if (res.ok) {
 				error = null;
+				writeClaim(data.meeting.id, participantId, localStorage);
 				shap = true;
 				clearTimeout(shapTimer);
 				shapTimer = setTimeout(() => (shap = false), SHAP_MS);
@@ -139,6 +157,24 @@
 		clearTimeout(copyTimer);
 		copyTimer = setTimeout(() => (copied = false), 2000);
 	}
+
+	async function takeOver(person: OverlapPerson) {
+		if (!browser || data.status !== 'ok') return;
+		const prev = participantId;
+		if (ephemeral && prev && prev !== person.participant_id) {
+			try {
+				await fetch(`/api/m/${data.meeting.id}/r/${prev}`, { method: 'DELETE' });
+			} catch {
+				// Claim still switches; a leftover Guest row is retried on the next visit.
+			}
+		}
+		participantId = person.participant_id;
+		name = person.name ?? '';
+		selected = new Set(person.slots);
+		ephemeral = false;
+		picked = null;
+		writeClaim(data.meeting.id, person.participant_id, localStorage);
+	}
 </script>
 
 <div class="page">
@@ -154,7 +190,14 @@
 				bind:value={name}
 				oninput={scheduleSave}
 			/>
-			<p class="people">{people} people</p>
+			<button
+				type="button"
+				class="people"
+				aria-expanded={listOpen}
+				onclick={() => (listOpen = !listOpen)}
+			>
+				{people} people
+			</button>
 			<button type="button" class="copy" onclick={copyLink}>
 				{copied ? 'Copied' : 'Copy link'}
 			</button>
@@ -164,10 +207,32 @@
 			{#if error}
 				<p class="err">{error}</p>
 			{/if}
+			{#if listOpen}
+				<ul class="names">
+					{#each livePeople as person, i (person.participant_id)}
+						<li>
+							<button
+								type="button"
+								class="who"
+								onclick={() =>
+									(picked = picked === person.participant_id ? null : person.participant_id)}
+							>
+								{displayName(person.name, i)}
+							</button>
+							{#if picked === person.participant_id && person.participant_id !== participantId}
+								<button type="button" class="take" onclick={() => void takeOver(person)}>
+									This is me
+								</button>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</header>
 		<div class="frame">
 			<Grid
 				model={data.model}
+				selection={selected}
 				{density}
 				best={overlap?.best}
 				onChange={(next) => {
@@ -246,7 +311,45 @@
 	}
 
 	.people {
+		appearance: none;
+		border: 0;
+		padding: 0;
+		background: transparent;
 		color: var(--muted);
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.names {
+		flex-basis: 100%;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem 0.75rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.names li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.4rem 0.6rem;
+	}
+
+	.who,
+	.take {
+		appearance: none;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.take {
+		font-weight: 650;
 	}
 
 	.peek {
