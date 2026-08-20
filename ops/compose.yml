@@ -19,6 +19,8 @@ services:
       HOST: '0.0.0.0'
       ORIGIN: https://shapshap.link
       NODE_OPTIONS: '--max-old-space-size=256'
+      ADDRESS_HEADER: X-Forwarded-For
+      XFF_DEPTH: '1'
       SENTRY_DSN: ${SENTRY_DSN}
       BODY_SIZE_LIMIT: 256K
     depends_on:
