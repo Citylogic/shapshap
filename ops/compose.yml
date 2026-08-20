@@ -18,7 +18,7 @@ services:
       NODE_ENV: production
       HOST: '0.0.0.0'
       ORIGIN: https://shapshap.link
-      NODE_OPTIONS: '--max-old-space-size=256'
+      NODE_OPTIONS: '--max-old-space-size=256 --harmony-temporal'
       ADDRESS_HEADER: X-Forwarded-For
       XFF_DEPTH: '1'
       SENTRY_DSN: ${SENTRY_DSN}
