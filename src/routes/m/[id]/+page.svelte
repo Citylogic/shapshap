@@ -2,6 +2,13 @@
 	import { browser } from '$app/environment';
 	import { COPY } from '$lib/copy';
 	import Grid from '$lib/grid/Grid.svelte';
+	import {
+		densityLevels,
+		formatPeekWhen,
+		mergeLive,
+		peekLists,
+		scoreOverlap
+	} from '$lib/grid/overlap';
 	import { newId } from '$lib/ids';
 	import { NAME_MAX, parseName } from '$lib/name';
 
@@ -24,8 +31,40 @@
 	let placeholder = $derived(
 		data.status === 'ok' ? `Guest ${data.responses.length + 1}` : 'Guest 1'
 	);
-	let people = $derived(data.status === 'ok' ? data.responses.length : 0);
+	let parsedName = $derived(parseName(name));
+	let liveName = $derived(parsedName.ok ? parsedName.name : null);
+	let livePeople = $derived(
+		data.status === 'ok' && participantId
+			? mergeLive(data.responses, {
+					participant_id: participantId,
+					name: liveName,
+					slots: [...selected]
+				})
+			: []
+	);
+	let overlap = $derived(
+		data.status === 'ok' ? scoreOverlap(livePeople, data.model.cells.length) : null
+	);
+	let density = $derived(overlap ? densityLevels(overlap.counts, overlap.total) : []);
+	let people = $derived(livePeople.length);
 	let href = $derived(browser ? window.location.href : '');
+
+	let peekIndex = $state<number | null>(null);
+	let peek = $derived.by(() => {
+		if (data.status !== 'ok' || peekIndex == null || !overlap) return null;
+		const cell = data.model.cells[peekIndex];
+		if (!cell?.exists) return null;
+		const day = data.model.days[cell.dayIndex];
+		const time = data.model.times[cell.slotInDay];
+		if (!day || !time) return null;
+		const lists = peekLists(livePeople, peekIndex);
+		return {
+			when: formatPeekWhen(day.date, time.time),
+			freeCount: overlap.counts[peekIndex] ?? 0,
+			total: overlap.total,
+			...lists
+		};
+	});
 
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -129,12 +168,23 @@
 		<div class="frame">
 			<Grid
 				model={data.model}
+				{density}
+				best={overlap?.best}
 				onChange={(next) => {
 					selected = next;
 					scheduleSave();
 				}}
+				onPeek={(index) => (peekIndex = index)}
 			/>
 		</div>
+		{#if peek}
+			<aside class="peek">
+				<p class="when">{peek.when}</p>
+				<p class="of">{peek.freeCount} of {peek.total} free</p>
+				<p><span class="k">Free</span> {peek.free.join(', ')}</p>
+				<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
+			</aside>
+		{/if}
 	{:else if data.status === 'gone'}
 		<main>
 			<h1>This one's gone.</h1>
@@ -196,6 +246,42 @@
 	}
 
 	.people {
+		color: var(--muted);
+	}
+
+	.peek {
+		display: grid;
+		grid-template-columns: 4.5rem 1fr;
+		column-gap: 0.75rem;
+		row-gap: 0.15rem;
+		margin-top: 0.75rem;
+		font-size: 0.85rem;
+		line-height: 1.35;
+	}
+
+	.when,
+	.of {
+		grid-column: 1 / -1;
+		margin: 0;
+	}
+
+	.when {
+		font-weight: 650;
+	}
+
+	.of {
+		color: var(--muted);
+		margin-bottom: 0.25rem;
+	}
+
+	.peek p {
+		display: grid;
+		grid-template-columns: subgrid;
+		grid-column: 1 / -1;
+		margin: 0;
+	}
+
+	.k {
 		color: var(--muted);
 	}
 
