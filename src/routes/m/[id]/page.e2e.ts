@@ -72,3 +72,52 @@ test('This is me takes over a name without a confirm dialog', async ({ page, bro
 	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('aria-selected', 'true');
 	await other.close();
 });
+
+async function postMeeting(page: Page, tz: string) {
+	const start = new Date();
+	const end = new Date(start);
+	end.setUTCDate(end.getUTCDate() + 4);
+	const ymd = (d: Date) => d.toISOString().slice(0, 10);
+	const res = await page.request.post('/api/m', {
+		data: {
+			starts_on: ymd(start),
+			ends_on: ymd(end),
+			window_start: '08:00',
+			window_end: '20:00',
+			slot_minutes: 30,
+			tz
+		}
+	});
+	expect(res.ok()).toBeTruthy();
+	const body: unknown = await res.json();
+	if (!body || typeof body !== 'object' || !('id' in body) || typeof body.id !== 'string') {
+		throw new Error('create failed');
+	}
+	return body.id;
+}
+
+test.describe('matching viewer zone', () => {
+	test.use({ timezoneId: 'Africa/Johannesburg' });
+
+	test('hides the zone label', async ({ page }) => {
+		const id = await postMeeting(page, 'Africa/Johannesburg');
+		await page.goto(`/m/${id}`);
+		await expect(page.locator('[data-slot="0"]')).toBeVisible();
+		await expect(page.getByLabel('Time zone')).toHaveCount(0);
+	});
+});
+
+test.describe('mismatched viewer zone', () => {
+	test.use({ timezoneId: 'America/Los_Angeles' });
+
+	test('shows a changeable zone label and updates grid times', async ({ page }) => {
+		const id = await postMeeting(page, 'Africa/Johannesburg');
+		await page.goto(`/m/${id}`);
+		const select = page.getByLabel('Time zone');
+		await expect(select).toBeVisible();
+		await expect(select).toHaveValue('America/Los_Angeles');
+		await expect(page.getByRole('rowheader', { name: '23:00' })).toBeVisible();
+		await select.selectOption('Europe/London');
+		await expect(page.getByRole('rowheader', { name: '07:00' })).toBeVisible();
+	});
+});
