@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+  push: { branches: [main] }
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: shapshap
+          POSTGRES_USER: shapshap
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd "pg_isready -U shapshap"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+    env:
+      DATABASE_URL: postgres://shapshap:test@localhost:5432/shapshap
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check # svelte-check + tsc --noEmit
+      - run: pnpm lint
+      - run: pnpm test # vitest unit
+      - run: pnpm test:int # integration, incl. the deletion test
+      - run: pnpm build
+      - run: pnpm size # 60 KB gate
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:e2e # incl. header + no-id-off-origin assertions
+      - run: pnpm audit --audit-level high

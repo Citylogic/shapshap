@@ -6,15 +6,15 @@ Condensed from `docs/step-by-step.md` §4.5. Rebuilds the box in about thirty mi
 
 ## Droplet
 
-| Field | Value |
-|---|---|
-| Region | London (`lon1`) |
-| Image | Ubuntu 24.04 LTS x64 |
-| Size | 1 vCPU / 1 GB / 25 GB |
-| Backups | Weekly (confirm 4 copies retained) |
-| IPv6 | On |
-| SSH key | `~/.ssh/shapshap_ed25519.pub` |
-| Hostname | `shapshap-lon1` |
+| Field    | Value                              |
+| -------- | ---------------------------------- |
+| Region   | London (`lon1`)                    |
+| Image    | Ubuntu 24.04 LTS x64               |
+| Size     | 1 vCPU / 1 GB / 25 GB              |
+| Backups  | Weekly (confirm 4 copies retained) |
+| IPv6     | On                                 |
+| SSH key  | `~/.ssh/shapshap_ed25519.pub`      |
+| Hostname | `shapshap-lon1`                    |
 
 ## Cloud Firewall (DigitalOcean, not ufw)
 

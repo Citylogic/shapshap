@@ -16,6 +16,7 @@ services:
     environment:
       DATABASE_URL: postgres://shapshap:${POSTGRES_PASSWORD}@postgres:5432/shapshap
       NODE_ENV: production
+      HOST: '0.0.0.0'
       ORIGIN: https://shapshap.link
       NODE_OPTIONS: '--max-old-space-size=256'
       SENTRY_DSN: ${SENTRY_DSN}
