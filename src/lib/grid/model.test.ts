@@ -16,6 +16,8 @@ describe('buildGridModel', () => {
 		expect(model.cells.every((c) => c.exists)).toBe(true);
 		expect(model.cells[0]).toMatchObject({ index: 0, dayIndex: 0, slotInDay: 0 });
 		expect(model.cells[24]).toMatchObject({ index: 24, dayIndex: 1, slotInDay: 0 });
+		expect(model.instants).toHaveLength(120);
+		expect(model.instants[0]).not.toBeNull();
 	});
 
 	it('keeps a 60-day × 30-min window rectangular', () => {
