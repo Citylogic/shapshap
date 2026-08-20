@@ -1,16 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { createMeeting } from '../../e2e/flow';
 
 const LOG_PATH = 'test-results/e2e-server.log';
-
-async function createMeeting(page: Page) {
-	await page.goto('/');
-	await page.locator('[data-date][data-in-month]').last().click();
-	await page.getByRole('button', { name: 'Times →' }).click();
-	await page.getByRole('button', { name: 'Get the link →' }).click();
-	await page.getByRole('button', { name: 'Add your times →' }).click();
-	await expect(page).toHaveURL(/\/m\/[A-Za-z0-9_-]{22}$/);
-}
 
 function meetingIdFrom(url: string): string {
 	const id = url.match(/\/m\/([A-Za-z0-9_-]{22})$/)?.[1];
