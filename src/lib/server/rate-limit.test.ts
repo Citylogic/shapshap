@@ -3,7 +3,7 @@ import { createRateLimiter } from './rate-limit';
 
 describe('token bucket', () => {
 	it('allows up to capacity then denies', () => {
-		let t = 0;
+		const t = 0;
 		const lim = createRateLimiter(() => t);
 		for (let i = 0; i < 5; i++) expect(lim.take('create', '1.1.1.1')).toBe(true);
 		expect(lim.take('create', '1.1.1.1')).toBe(false);
@@ -22,7 +22,7 @@ describe('token bucket', () => {
 	});
 
 	it('isolates kinds and IPs', () => {
-		let t = 0;
+		const t = 0;
 		const lim = createRateLimiter(() => t);
 		for (let i = 0; i < 5; i++) lim.take('create', '1.1.1.1');
 		expect(lim.take('create', '1.1.1.1')).toBe(false);
@@ -31,7 +31,7 @@ describe('token bucket', () => {
 	});
 
 	it('uses write 60/min and read 120/min capacities', () => {
-		let t = 0;
+		const t = 0;
 		const lim = createRateLimiter(() => t);
 		for (let i = 0; i < 60; i++) expect(lim.take('write', 'a')).toBe(true);
 		expect(lim.take('write', 'a')).toBe(false);
@@ -44,5 +44,17 @@ describe('token bucket', () => {
 		for (let i = 0; i < 5; i++) lim.take('create', '1.1.1.1');
 		lim.reset();
 		expect(lim.take('create', '1.1.1.1')).toBe(true);
+	});
+
+	it('RATE_LIMIT=off skips the bucket', () => {
+		const prev = process.env.RATE_LIMIT;
+		process.env.RATE_LIMIT = 'off';
+		try {
+			const lim = createRateLimiter(() => 0);
+			for (let i = 0; i < 20; i++) expect(lim.take('create', '1.1.1.1')).toBe(true);
+		} finally {
+			if (prev === undefined) delete process.env.RATE_LIMIT;
+			else process.env.RATE_LIMIT = prev;
+		}
 	});
 });
