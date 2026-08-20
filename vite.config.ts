@@ -25,8 +25,7 @@ export default defineConfig({
 					'base-uri': ['none'],
 					'form-action': ['none'],
 					'frame-ancestors': ['none'],
-					'object-src': ['none'],
-					'upgrade-insecure-requests': true
+					'object-src': ['none']
 				}
 			}
 		})
