@@ -25,6 +25,8 @@
 
 	let dragging = false;
 	let anchor: string | null = null;
+	/** Pointer paint already handled this gesture; ignore the trailing click. */
+	let pointerHandled = false;
 
 	function dateFromPoint(x: number, y: number): string | null {
 		const el = document.elementFromPoint(x, y);
@@ -37,6 +39,7 @@
 		const date = dateFromPoint(e.clientX, e.clientY);
 		if (!date) return;
 		e.preventDefault();
+		pointerHandled = true;
 		dragging = true;
 		anchor = date;
 		onRange(orderRange(date, date));
@@ -59,6 +62,14 @@
 		anchor = null;
 		const t = e.currentTarget as HTMLElement;
 		if (t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId);
+	}
+
+	function pickDay(date: string) {
+		if (pointerHandled) {
+			pointerHandled = false;
+			return;
+		}
+		onRange(orderRange(date, date));
 	}
 
 	function shift(delta: number) {
@@ -104,6 +115,7 @@
 				data-in-month={cell.inMonth ? '' : undefined}
 				aria-pressed={on}
 				aria-label={cell.date}
+				onclick={() => pickDay(cell.date)}
 			>
 				{cell.day}
 			</button>
