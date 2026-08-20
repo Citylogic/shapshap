@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { endSql, getSql } from './db';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { getSql } from './db';
 import { migrate } from './migrate';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -12,10 +12,6 @@ describe('db client', () => {
 
 	beforeAll(async () => {
 		await migrate(sql);
-	});
-
-	afterAll(async () => {
-		await endSql();
 	});
 
 	it('applies numbered migrations through the app client', async () => {
