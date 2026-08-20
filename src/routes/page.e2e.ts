@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pickDay } from '../../e2e/flow';
 
 const LINK_RE = /\/m\/[A-Za-z0-9_-]{22}$/;
 
@@ -18,7 +19,7 @@ test('cannot proceed until a day is picked', async ({ page }) => {
 	await page.goto('/');
 	const times = page.getByRole('button', { name: 'Times →' });
 	await expect(times).toBeDisabled();
-	await page.locator('[data-date][data-in-month]').last().click();
+	await pickDay(page);
 	await expect(times).toBeEnabled();
 	await times.click();
 	await expect(page.getByRole('heading', { name: 'What times?' })).toBeVisible();
@@ -29,7 +30,7 @@ test('cannot proceed until a day is picked', async ({ page }) => {
 
 test('days then times then a full copyable link', async ({ page }) => {
 	await page.goto('/');
-	await page.locator('[data-date][data-in-month]').last().click();
+	await pickDay(page);
 	await page.getByRole('button', { name: 'Times →' }).click();
 	await page.getByRole('button', { name: 'Get the link →' }).click();
 
@@ -49,4 +50,14 @@ test('days then times then a full copyable link', async ({ page }) => {
 		page.getByText("This link is the only way back in. We can't recover it and neither can you.")
 	).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Add your times →' })).toBeVisible();
+});
+
+test('Why opens the trust note', async ({ page }) => {
+	await page.goto('/');
+	const why = page.getByRole('link', { name: 'Why →' });
+	await expect(why).toHaveAttribute('href', /why/);
+	await page.goto('/why');
+	await expect(page).toHaveURL(/\/why$/);
+	await expect(page.getByText('No accounts, and not much kept.')).toBeVisible();
+	await expect(page.getByText('github.com/Citylogic/shapshap')).toBeVisible();
 });
