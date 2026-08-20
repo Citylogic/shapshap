@@ -33,12 +33,15 @@ export default defineConfig({
 	],
 	test: {
 		expect: { requireAssertions: true },
+		// Node 24: native Temporal is behind this flag (TECH-STACK §11.3).
+		execArgv: ['--harmony-temporal'],
 		projects: [
 			{
 				extends: './vite.config.ts',
 				test: {
 					name: 'server',
 					environment: 'node',
+					execArgv: ['--harmony-temporal'],
 					include: ['src/**/*.{test,spec}.{js,ts}'],
 					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
