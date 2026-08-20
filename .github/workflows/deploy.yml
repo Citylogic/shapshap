@@ -28,13 +28,6 @@ jobs:
             ghcr.io/citylogic/shapshap:sha-${{ github.sha }}
             ghcr.io/citylogic/shapshap:latest
 
-      - name: Make GHCR package public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api --method PATCH /user/packages/container/shapshap/visibility \
-            -f visibility=public
-
       - name: Deploy
         uses: appleboy/ssh-action@v1
         with:
