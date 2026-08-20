@@ -1,13 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-async function createMeeting(page: Page) {
-	await page.goto('/');
-	await page.locator('[data-date][data-in-month]').last().click();
-	await page.getByRole('button', { name: 'Times →' }).click();
-	await page.getByRole('button', { name: 'Get the link →' }).click();
-	await page.getByRole('button', { name: 'Add your times →' }).click();
-	await expect(page).toHaveURL(/\/m\/[A-Za-z0-9_-]{22}$/);
-}
+import { createMeeting } from '../../../../e2e/flow';
 
 test('SSR grid paints and autosaves without a Submit button', async ({ page }) => {
 	await createMeeting(page);
@@ -23,9 +15,15 @@ test('SSR grid paints and autosaves without a Submit button', async ({ page }) =
 	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
 });
 
-test('missing meeting shows the not-found line', async ({ page }) => {
-	await page.goto('/m/aaaaaaaaaaaaaaaaaaaaaa');
+test('malformed meeting link shows the not-found line', async ({ page }) => {
+	await page.goto('/m/not-a-real-link');
 	await expect(page.getByText("That link doesn't work. Check you copied all of it.")).toBeVisible();
+});
+
+test('deleted meeting shows the gone page', async ({ page }) => {
+	await page.goto('/m/aaaaaaaaaaaaaaaaaaaaaa');
+	await expect(page.getByRole('heading', { name: "This one's gone." })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Start a new one →' })).toBeVisible();
 });
 
 test('reload restores the painted response', async ({ page }) => {
@@ -41,7 +39,10 @@ test('reload restores the painted response', async ({ page }) => {
 	await expect(page.locator('[data-slot="0"]')).toHaveAttribute('aria-selected', 'true');
 });
 
-test('This is me takes over a name without a confirm dialog', async ({ page, browser }) => {
+test('This is me takes over a name without a confirm dialog', async ({
+	page,
+	browser
+}, testInfo) => {
 	await createMeeting(page);
 	await page.getByPlaceholder(/^Guest /).fill('Ada L');
 	const put = page.waitForRequest((req) => {
@@ -60,7 +61,7 @@ test('This is me takes over a name without a confirm dialog', async ({ page, bro
 	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
 	const url = page.url();
 
-	const other = await browser.newContext();
+	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
 	await otherPage.getByRole('button', { name: /people$/ }).click();
@@ -99,9 +100,11 @@ async function postMeeting(page: Page, tz: string) {
 test.describe('matching viewer zone', () => {
 	test.use({ timezoneId: 'Africa/Johannesburg' });
 
-	test('hides the zone label', async ({ page }) => {
+	test('hides the zone label', async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'WebKit does not emulate timezoneId');
 		const id = await postMeeting(page, 'Africa/Johannesburg');
 		await page.goto(`/m/${id}`);
+		await page.locator('[data-slot="0"]').scrollIntoViewIfNeeded();
 		await expect(page.locator('[data-slot="0"]')).toBeVisible();
 		await expect(page.getByLabel('Time zone')).toHaveCount(0);
 	});
@@ -110,7 +113,8 @@ test.describe('matching viewer zone', () => {
 test.describe('mismatched viewer zone', () => {
 	test.use({ timezoneId: 'America/Los_Angeles' });
 
-	test('shows a changeable zone label and updates grid times', async ({ page }) => {
+	test('shows a changeable zone label and updates grid times', async ({ page, browserName }) => {
+		test.skip(browserName === 'webkit', 'WebKit does not emulate timezoneId');
 		const id = await postMeeting(page, 'Africa/Johannesburg');
 		await page.goto(`/m/${id}`);
 		const select = page.getByLabel('Time zone');
@@ -120,4 +124,56 @@ test.describe('mismatched viewer zone', () => {
 		await select.selectOption('Europe/London');
 		await expect(page.getByRole('rowheader', { name: '07:00' })).toBeVisible();
 	});
+});
+
+test('second visitor sees overlap after copy-link and paint', async ({
+	page,
+	browser
+}, testInfo) => {
+	await createMeeting(page);
+	await page.getByRole('button', { name: 'Copy link' }).click();
+	await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+
+	const put = page.waitForRequest(
+		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
+	);
+	await page.locator('[data-slot="0"]').click();
+	await put;
+	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
+	const url = page.url();
+
+	const other = await browser.newContext(testInfo.project.use);
+	const otherPage = await other.newPage();
+	await otherPage.goto(url);
+	const cell = otherPage.locator('[data-slot="0"]');
+	await expect(cell).toHaveAttribute('data-best', '');
+	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
+	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('1 people');
+	await other.close();
+});
+
+test('expired meeting shows the gone page', async ({ page }) => {
+	const res = await page.request.post('/api/m', {
+		data: {
+			starts_on: '2020-01-06',
+			ends_on: '2020-01-10',
+			window_start: '08:00',
+			window_end: '20:00',
+			slot_minutes: 30,
+			tz: 'Africa/Johannesburg'
+		}
+	});
+	expect(res.ok()).toBeTruthy();
+	const body: unknown = await res.json();
+	if (!body || typeof body !== 'object' || !('id' in body) || typeof body.id !== 'string') {
+		throw new Error('create failed');
+	}
+	await page.goto(`/m/${body.id}`);
+	await expect(page.getByRole('heading', { name: "This one's gone." })).toBeVisible();
+	await expect(
+		page.getByText('Meetings are deleted 24 hours after the last time slot.')
+	).toBeVisible();
+	await expect(page.getByText("There's no archive and no copy.")).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Start a new one →' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /expired/i })).toHaveCount(0);
 });
