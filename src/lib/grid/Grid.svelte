@@ -4,10 +4,15 @@
 
 	type Props = {
 		model: GridModel;
+		/** 0–4 per slot index; paint (`on`) sits on top. */
+		density?: readonly number[];
+		best?: ReadonlySet<number>;
 		onChange?: (selected: ReadonlySet<number>) => void;
+		onPeek?: (index: number | null) => void;
 	};
 
-	let { model, onChange }: Props = $props();
+	let { model, density = [], best = new Set(), onChange, onPeek }: Props = $props();
+	let peekSticky = false;
 
 	let selected = $state(new Set<number>());
 	/** Mirror of `selected`; $state does not flush inside a synchronous paint walk. */
@@ -40,12 +45,18 @@
 		}
 	}
 
+	function peekAt(x: number, y: number) {
+		onPeek?.(slotIndexFromPoint(x, y));
+	}
+
 	function onPointerDown(e: PointerEvent) {
 		if (e.button !== 0) return;
 		const index = slotIndexFromPoint(e.clientX, e.clientY);
 		if (index == null) return;
 		e.preventDefault();
 		painting = true;
+		peekSticky = e.pointerType !== 'mouse';
+		onPeek?.(index);
 		mode = live.has(index) ? 'off' : 'on';
 		apply(index);
 		lastX = e.clientX;
@@ -58,10 +69,18 @@
 	}
 
 	function onPointerMove(e: PointerEvent) {
-		if (!painting) return;
+		if (!painting) {
+			peekAt(e.clientX, e.clientY);
+			return;
+		}
 		paintAlong(lastX, lastY, e.clientX, e.clientY);
+		peekAt(e.clientX, e.clientY);
 		lastX = e.clientX;
 		lastY = e.clientY;
+	}
+
+	function onPointerLeave() {
+		if (!painting && !peekSticky) onPeek?.(null);
 	}
 
 	function onPointerEnd(e: PointerEvent) {
@@ -100,23 +119,39 @@
 		onpointerup={onPointerEnd}
 		onpointercancel={onPointerEnd}
 		onlostpointercapture={onPointerEnd}
+		onpointerleave={onPointerLeave}
 	>
 		{#each model.cells as cell (cell.index)}
 			{@const day = model.days[cell.dayIndex]}
 			{@const time = model.times[cell.slotInDay]}
 			{@const on = cell.exists && selected.has(cell.index)}
+			{@const level = cell.exists ? (density[cell.index] ?? 0) : 0}
+			{@const isBest = cell.exists && best.has(cell.index)}
 			<div
 				class="cell"
 				class:gap={!cell.exists}
 				class:on
+				class:best={isBest}
+				class:d1={level === 1}
+				class:d2={level === 2}
+				class:d3={level === 3}
+				class:d4={level === 4}
 				style:grid-column={cell.dayIndex + 1}
 				style:grid-row={cell.slotInDay + 1}
 				role="gridcell"
 				aria-disabled={!cell.exists ? true : undefined}
 				aria-selected={on}
-				aria-label={day && time ? `${day.weekday} ${day.day}, ${time.time}` : undefined}
+				aria-label={day && time
+					? `${day.weekday} ${day.day}, ${time.time}${isBest ? ', Best' : ''}`
+					: undefined}
 				data-slot={cell.exists ? String(cell.index) : undefined}
-			></div>
+				data-density={level || undefined}
+				data-best={isBest ? '' : undefined}
+			>
+				{#if isBest}
+					<span class="badge" aria-hidden="true">Best</span>
+				{/if}
+			</div>
 		{/each}
 	</div>
 </div>
@@ -215,6 +250,7 @@
 	}
 
 	.cell {
+		position: relative;
 		min-width: var(--day-min);
 		min-height: var(--slot-h);
 		background: var(--grid-cell);
@@ -231,7 +267,41 @@
 		);
 	}
 
+	.cell.d1 {
+		background: var(--grid-density-1);
+	}
+
+	.cell.d2 {
+		background: var(--grid-density-2);
+	}
+
+	.cell.d3 {
+		background: var(--grid-density-3);
+	}
+
+	.cell.d4 {
+		background: var(--grid-density-4);
+	}
+
 	.cell.on {
 		background: var(--grid-self);
+	}
+
+	.badge {
+		position: absolute;
+		top: 0.15rem;
+		left: 0.2rem;
+		color: var(--grid-ink);
+		font-size: 0.55rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		line-height: 1;
+		pointer-events: none;
+	}
+
+	.cell.on .badge,
+	.cell.d3 .badge,
+	.cell.d4 .badge {
+		color: var(--grid-cell);
 	}
 </style>
