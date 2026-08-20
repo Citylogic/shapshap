@@ -1,5 +1,6 @@
 import { COPY } from '$lib/copy';
 import { buildGridModel } from '$lib/grid/model';
+import { isValidId } from '$lib/ids';
 import { getMeeting, type MeetingJson } from '$lib/server/meetings';
 import type { MeetingWindow } from '$lib/time';
 import type { PageServerLoad } from './$types';
@@ -16,12 +17,17 @@ function windowOf(meeting: MeetingJson): MeetingWindow {
 }
 
 export const load: PageServerLoad = async ({ params, getClientAddress }) => {
+	if (!isValidId(params.id)) {
+		return { status: 'missing' as const, message: COPY.notFound };
+	}
+
 	const result = await getMeeting(params.id, getClientAddress());
 	if (!result.ok) {
 		if (result.status === 429) {
 			return { status: 'limited' as const, message: result.body.error };
 		}
-		return { status: 'missing' as const, message: COPY.notFound };
+		// Valid id, nothing in the db — deleted after expiry (PRD §15.5).
+		return { status: 'gone' as const };
 	}
 
 	const { meeting, responses } = result.body;
