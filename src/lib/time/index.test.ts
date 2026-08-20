@@ -146,6 +146,23 @@ describe('generateSlots', () => {
 		expect(gridSize({ ...base, slotMinutes: 60 }).slotsPerDay).toBe(1);
 		expect(gridSize({ ...base }).slotsPerDay).toBe(2);
 	});
+
+	it('stops at midnight instead of wrapping when windowEnd is not on a slot boundary', () => {
+		const input: MeetingWindow = {
+			startsOn: '2026-06-15',
+			endsOn: '2026-06-15',
+			windowStart: '08:00',
+			windowEnd: '23:31',
+			slotMinutes: 30,
+			tz: 'Africa/Johannesburg'
+		};
+		const size = gridSize(input);
+		expect(size).toEqual({ days: 1, slotsPerDay: 32, slotCount: 32 });
+		const slots = generateSlots(input);
+		expect(slots).toHaveLength(32);
+		expect(slots[0]?.localTime).toBe('08:00');
+		expect(slots[31]?.localTime).toBe('23:30');
+	});
 });
 
 describe('expiresAt', () => {
