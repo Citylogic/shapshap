@@ -32,7 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api --method POST /user/packages/container/shapshap/visibility \
+          gh api --method PATCH /user/packages/container/shapshap/visibility \
             -f visibility=public
 
       - name: Deploy
@@ -46,7 +46,7 @@ jobs:
             sed -i "s|^TAG=.*|TAG=sha-${{ github.sha }}|" .env
             docker compose pull
             docker compose up -d
-            sleep 20
+            sleep 45
             docker compose ps --format json | grep -q '"Health":"healthy"' || {
               echo "healthcheck failed, rolling back"; exit 1; }
             docker image prune -f
