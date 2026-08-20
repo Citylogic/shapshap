@@ -1,13 +1,53 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Days from '$lib/wizard/Days.svelte';
+	import Link from '$lib/wizard/Link.svelte';
+	import Times from '$lib/wizard/Times.svelte';
 	import type { DayRange } from '$lib/wizard/days';
+	import {
+		DEFAULT_WINDOW_END,
+		DEFAULT_WINDOW_START,
+		meetingHref,
+		postMeeting,
+		windowOk
+	} from '$lib/wizard/times';
 
-	let step = $state<1 | 2>(1);
+	let step = $state<1 | 2 | 3>(1);
 	let range = $state<DayRange | null>(null);
+	let windowStart = $state(DEFAULT_WINDOW_START);
+	let windowEnd = $state(DEFAULT_WINDOW_END);
+	let busy = $state(false);
+	let error = $state<string | null>(null);
+	let meetingId = $state<string | null>(null);
+
+	let href = $derived(meetingId ? meetingHref(meetingId, window.location.origin) : '');
+	let canCreate = $derived(range != null && windowOk(windowStart, windowEnd) && !busy);
+
+	async function getLink() {
+		if (!range || !canCreate) return;
+		busy = true;
+		error = null;
+		const result = await postMeeting(range, windowStart, windowEnd);
+		busy = false;
+		if (!result.ok) {
+			error = result.error;
+			return;
+		}
+		meetingId = result.id;
+		step = 3;
+	}
+
+	function addTimes() {
+		if (!meetingId) return;
+		void goto(resolve('/m/[id]', { id: meetingId }));
+	}
 </script>
 
 <div class="page">
-	<p class="wordmark">shapshap</p>
+	{#if step !== 3}
+		<p class="wordmark">shapshap</p>
+	{/if}
 
 	<main>
 		{#if step === 1}
@@ -16,10 +56,26 @@
 			<button type="button" class="go" disabled={!range} onclick={() => (step = 2)}>
 				Times →
 			</button>
-		{:else}
+		{:else if step === 2}
 			<button type="button" class="back" onclick={() => (step = 1)}>←</button>
 			<h1>What times?</h1>
-			<button type="button" class="go" disabled>Get the link →</button>
+			<Times
+				{windowStart}
+				{windowEnd}
+				onWindow={(start, end) => {
+					windowStart = start;
+					windowEnd = end;
+				}}
+			/>
+			{#if error}
+				<p class="err">{error}</p>
+			{/if}
+			<button type="button" class="go" disabled={!canCreate} onclick={getLink}>
+				Get the link →
+			</button>
+		{:else}
+			<Link {href} />
+			<button type="button" class="go" onclick={addTimes}>Add your times →</button>
 		{/if}
 	</main>
 
@@ -106,6 +162,12 @@
 		align-self: flex-start;
 		padding: 0.2rem 0;
 		color: var(--muted);
+	}
+
+	.err {
+		margin: 0;
+		font-size: 1rem;
+		line-height: 1.45;
 	}
 
 	footer {
