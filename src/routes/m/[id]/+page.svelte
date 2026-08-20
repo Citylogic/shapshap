@@ -3,6 +3,7 @@
 	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
 	import Grid from '$lib/grid/Grid.svelte';
+	import { relabelGridModel } from '$lib/grid/model';
 	import {
 		densityLevels,
 		displayName,
@@ -12,6 +13,7 @@
 		scoreOverlap,
 		type OverlapPerson
 	} from '$lib/grid/overlap';
+	import { showZoneControl, viewerTz, wallAt, zoneIds } from '$lib/grid/zone';
 	import { newId } from '$lib/ids';
 	import { NAME_MAX, parseName } from '$lib/name';
 
@@ -49,8 +51,18 @@
 				})
 			: []
 	);
+	let detectedTz = $state<string | null>(null);
+	let viewTz = $state('');
+	let zones = $derived(browser ? zoneIds() : []);
+	let displayTz = $derived(data.status === 'ok' ? viewTz || data.meeting.tz : '');
+	let model = $derived.by(() => {
+		if (data.status !== 'ok') return null;
+		if (displayTz === data.meeting.tz) return data.model;
+		return relabelGridModel(data.model, displayTz);
+	});
+	let zoneOpen = $derived(data.status === 'ok' && showZoneControl(detectedTz, data.meeting.tz));
 	let overlap = $derived(
-		data.status === 'ok' ? scoreOverlap(livePeople, data.model.cells.length) : null
+		data.status === 'ok' && model ? scoreOverlap(livePeople, model.cells.length) : null
 	);
 	let density = $derived(overlap ? densityLevels(overlap.counts, overlap.total) : []);
 	let people = $derived(livePeople.length);
@@ -58,15 +70,18 @@
 
 	let peekIndex = $state<number | null>(null);
 	let peek = $derived.by(() => {
-		if (data.status !== 'ok' || peekIndex == null || !overlap) return null;
-		const cell = data.model.cells[peekIndex];
+		if (data.status !== 'ok' || peekIndex == null || !overlap || !model) return null;
+		const cell = model.cells[peekIndex];
 		if (!cell?.exists) return null;
-		const day = data.model.days[cell.dayIndex];
-		const time = data.model.times[cell.slotInDay];
-		if (!day || !time) return null;
+		const ms = model.instants[peekIndex];
+		const day = model.days[cell.dayIndex];
+		const time = model.times[cell.slotInDay];
+		const wall =
+			ms != null ? wallAt(ms, displayTz) : day && time ? { date: day.date, time: time.time } : null;
+		if (!wall) return null;
 		const lists = peekLists(livePeople, peekIndex);
 		return {
-			when: formatPeekWhen(day.date, time.time),
+			when: formatPeekWhen(wall.date, wall.time),
 			freeCount: overlap.counts[peekIndex] ?? 0,
 			total: overlap.total,
 			...lists
@@ -84,6 +99,9 @@
 		name = restored.name;
 		selected = new Set(restored.slots);
 		ephemeral = restored.ephemeral;
+		const tz = viewerTz();
+		detectedTz = tz;
+		viewTz = tz;
 	});
 
 	function scheduleSave() {
@@ -201,6 +219,15 @@
 			<button type="button" class="copy" onclick={copyLink}>
 				{copied ? 'Copied' : 'Copy link'}
 			</button>
+			{#if zoneOpen}
+				<label class="tz">
+					<select aria-label="Time zone" bind:value={viewTz}>
+						{#each zones as z (z)}
+							<option value={z}>{z.replaceAll('_', ' ')}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
 			{#if shap}
 				<p class="shap">Shap</p>
 			{/if}
@@ -230,17 +257,19 @@
 			{/if}
 		</header>
 		<div class="frame">
-			<Grid
-				model={data.model}
-				selection={selected}
-				{density}
-				best={overlap?.best}
-				onChange={(next) => {
-					selected = next;
-					scheduleSave();
-				}}
-				onPeek={(index) => (peekIndex = index)}
-			/>
+			{#if model}
+				<Grid
+					{model}
+					selection={selected}
+					{density}
+					best={overlap?.best}
+					onChange={(next) => {
+						selected = next;
+						scheduleSave();
+					}}
+					onPeek={(index) => (peekIndex = index)}
+				/>
+			{/if}
 		</div>
 		{#if peek}
 			<aside class="peek">
@@ -398,6 +427,25 @@
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0.2rem 0;
+	}
+
+	.tz {
+		flex-basis: 100%;
+		margin: 0;
+	}
+
+	.tz select {
+		appearance: none;
+		max-width: 100%;
+		margin: 0;
+		border: 0;
+		border-bottom: 1px solid var(--line);
+		border-radius: 0;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.15rem 0;
 	}
 
 	.shap {
