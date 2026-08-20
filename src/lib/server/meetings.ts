@@ -13,7 +13,9 @@ import { rateLimit } from './rate-limit';
 export const COPY = {
 	notFound: "That link doesn't work. Check you copied all of it.",
 	over60: "That's more than 60 days. Pick a shorter stretch.",
-	rateLimited: 'Too many at once. Try in a minute.'
+	rateLimited: 'Too many at once. Try in a minute.',
+	full: "This one's full at 50 people.",
+	contact: 'First name and initial is plenty.'
 } as const;
 
 const MAX_DAYS = 60;
@@ -56,10 +58,13 @@ export type GetBody = {
 	responses: ResponseJson[];
 };
 
-export type ApiResult<T> =
-	| { ok: true; status: 200 | 201; body: T }
+export type ApiErr =
 	| { ok: false; status: 400; body?: { error: string } }
 	| { ok: false; status: 404 | 429; body: { error: string } };
+
+export type ApiResult<T> = { ok: true; status: 200 | 201; body: T } | ApiErr;
+
+export type ApiEmpty = { ok: true; status: 204 } | ApiErr;
 
 type MeetingRow = {
 	id: string;
@@ -127,12 +132,13 @@ function capExpires(computed: Temporal.Instant): Temporal.Instant {
 	return Temporal.Instant.compare(computed, ceiling) > 0 ? ceiling : computed;
 }
 
-export function apiResponse<T>(result: ApiResult<T>): Response {
+export function apiResponse<T>(result: ApiResult<T> | ApiEmpty): Response {
 	if (!result.ok) {
 		return result.body
 			? Response.json(result.body, { status: result.status })
 			: new Response(null, { status: result.status });
 	}
+	if (result.status === 204) return new Response(null, { status: 204 });
 	return Response.json(result.body, { status: result.status });
 }
 
