@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { resolve } from '$app/paths';
 	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
 	import Grid from '$lib/grid/Grid.svelte';
@@ -281,7 +282,10 @@
 		{/if}
 	{:else if data.status === 'gone'}
 		<main>
-			<h1>This one's gone.</h1>
+			<h1>{COPY.goneTitle}</h1>
+			<p>{COPY.goneKeep}</p>
+			<p>{COPY.goneArchive}</p>
+			<a href={resolve('/')}>{COPY.goneCta}</a>
 		</main>
 	{:else}
 		<main>
@@ -475,6 +479,21 @@
 		font-size: 1.75rem;
 		font-weight: 650;
 		letter-spacing: -0.02em;
+	}
+
+	main p {
+		margin: 0.85rem 0 0;
+		font-size: 1rem;
+		line-height: 1.45;
+	}
+
+	main a {
+		display: inline-block;
+		margin-top: 1.5rem;
+		color: inherit;
+		font-size: 1.05rem;
+		font-weight: 600;
+		text-decoration: none;
 	}
 
 	@keyframes shap-fade {
