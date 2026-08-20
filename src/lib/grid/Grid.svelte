@@ -4,6 +4,8 @@
 
 	type Props = {
 		model: GridModel;
+		/** When set, the parent owns the painted set (return visit / takeover). */
+		selection?: ReadonlySet<number>;
 		/** 0–4 per slot index; paint (`on`) sits on top. */
 		density?: readonly number[];
 		best?: ReadonlySet<number>;
@@ -11,7 +13,7 @@
 		onPeek?: (index: number | null) => void;
 	};
 
-	let { model, density = [], best = new Set(), onChange, onPeek }: Props = $props();
+	let { model, selection, density = [], best = new Set(), onChange, onPeek }: Props = $props();
 	let peekSticky = false;
 
 	let selected = $state(new Set<number>());
@@ -21,6 +23,11 @@
 	let mode: PaintMode = 'on';
 	let lastX = 0;
 	let lastY = 0;
+
+	function current(): ReadonlySet<number> {
+		if (painting) return live;
+		return selection ?? selected;
+	}
 
 	function apply(index: number) {
 		if (mode === 'on' ? live.has(index) : !live.has(index)) return;
@@ -57,6 +64,7 @@
 		painting = true;
 		peekSticky = e.pointerType !== 'mouse';
 		onPeek?.(index);
+		live = new Set(selection ?? selected);
 		mode = live.has(index) ? 'off' : 'on';
 		apply(index);
 		lastX = e.clientX;
@@ -124,7 +132,7 @@
 		{#each model.cells as cell (cell.index)}
 			{@const day = model.days[cell.dayIndex]}
 			{@const time = model.times[cell.slotInDay]}
-			{@const on = cell.exists && selected.has(cell.index)}
+			{@const on = cell.exists && current().has(cell.index)}
 			{@const level = cell.exists ? (density[cell.index] ?? 0) : 0}
 			{@const isBest = cell.exists && best.has(cell.index)}
 			<div
