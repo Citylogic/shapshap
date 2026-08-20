@@ -1,0 +1,75 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    mem_limit: 96m
+
+  app:
+    image: ghcr.io/citylogic/shapshap:${TAG}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://shapshap:${POSTGRES_PASSWORD}@postgres:5432/shapshap
+      NODE_ENV: production
+      ORIGIN: https://shapshap.link
+      NODE_OPTIONS: '--max-old-space-size=256'
+      SENTRY_DSN: ${SENTRY_DSN}
+      BODY_SIZE_LIMIT: 256K
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+    mem_limit: 384m
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shapshap
+      POSTGRES_USER: shapshap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      postgres
+        -c shared_buffers=128MB
+        -c effective_cache_size=256MB
+        -c max_connections=20
+        -c work_mem=4MB
+        -c log_statement=none
+        -c log_min_duration_statement=-1
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shapshap']
+      interval: 10s
+    mem_limit: 320m
+    # no ports: — never reachable from outside the compose network
+
+  expiry:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+    entrypoint: ['/bin/sh', '-c']
+    command: >
+      'while true; do
+         psql -h postgres -U shapshap -d shapshap -c
+           "DELETE FROM meetings WHERE expires_at < now();";
+         sleep 3600;
+       done'
+    mem_limit: 64m
+
+volumes: { pgdata: {}, caddy_data: {}, caddy_config: {} }

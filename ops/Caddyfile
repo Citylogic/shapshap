@@ -1,0 +1,42 @@
+{
+    email aidan@citylogic.co.za
+    servers { trusted_proxies static private_ranges }
+}
+
+(secure_headers) {
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        Referrer-Policy           "no-referrer"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+        Permissions-Policy        "geolocation=(), camera=(), microphone=(), interest-cohort=(), payment=(), usb=()"
+        -Server
+        -X-Powered-By
+    }
+}
+
+sharpsharp.link, www.sharpsharp.link, www.shapshap.link {
+    redir https://shapshap.link{uri} permanent
+}
+
+shapshap.link {
+    import secure_headers
+    encode zstd gzip
+    reverse_proxy app:3000
+
+    log {
+        format filter {
+            wrap console
+            fields {
+                request>uri     regexp "/m/[A-Za-z0-9_-]{22}" "/m/[id]"
+                request>remote_ip   delete
+                request>client_ip   delete
+                request>remote_port delete
+                request>headers     delete
+                resp_headers        delete
+            }
+        }
+    }
+}
