@@ -4,19 +4,14 @@
  */
 
 import * as v from 'valibot';
+import { COPY } from '../copy';
 import { isValidId, newId } from '../ids';
 import { expiresAt, type SlotMinutes } from '../time';
 import { getSql } from './db';
 import { ipBucketKey } from './ip';
 import { rateLimit } from './rate-limit';
 
-export const COPY = {
-	notFound: "That link doesn't work. Check you copied all of it.",
-	over60: "That's more than 60 days. Pick a shorter stretch.",
-	rateLimited: 'Too many at once. Try in a minute.',
-	full: "This one's full at 50 people.",
-	contact: 'First name and initial is plenty.'
-} as const;
+export { COPY };
 
 const MAX_DAYS = 60;
 const EXPIRY_CEILING_HOURS = 90 * 24;
