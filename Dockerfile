@@ -16,4 +16,4 @@ COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/db ./db
 USER node
 EXPOSE 3000
-CMD ["node", "build"]
+CMD ["node", "--harmony-temporal", "build"]
