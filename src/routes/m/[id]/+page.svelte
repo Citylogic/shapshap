@@ -146,6 +146,7 @@
 		name = restored.name;
 		selected = new Set(restored.slots);
 		ephemeral = restored.ephemeral;
+		entered = !needsEntry(!restored.ephemeral, restored.name);
 		const tz = viewerTz();
 		detectedTz = tz;
 		viewTz = tz;
@@ -174,6 +175,7 @@
 		ephemeral = false;
 		entered = true;
 		if (browser && data.status === 'ok') writeClaim(data.meeting.id, participantId, localStorage);
+		scheduleSave();
 		queueMicrotask(() => document.querySelector<HTMLElement>('.frame')?.focus());
 	}
 
@@ -263,6 +265,7 @@
 		name = person.name ?? '';
 		selected = new Set(person.slots);
 		ephemeral = false;
+		entered = !needsEntry(true, person.name ?? '');
 		picked = null;
 		writeClaim(data.meeting.id, person.participant_id, localStorage);
 	}
@@ -271,10 +274,19 @@
 		picked = picked === id ? null : id;
 	}
 
+	function closePeople(e: { target: unknown }) {
+		if (picked == null) return;
+		const t = e.target;
+		if (t instanceof Element && t.closest('.people')) return;
+		picked = null;
+	}
+
 	function goPage(next: number) {
 		pageStart = clampPageStart(next, dayCount);
 	}
 </script>
+
+<svelte:window onclick={closePeople} onkeydown={(e) => e.key === 'Escape' && (picked = null)} />
 
 <div class="page">
 	{#if data.status === 'ok'}
@@ -287,15 +299,6 @@
 					<p class="kicker">{kicker}</p>
 					<h1>When are you free?</h1>
 					<p class="meta">{meta}</p>
-					{#if zoneOpen}
-						<label class="tz">
-							<select aria-label="Time zone" bind:value={viewTz}>
-								{#each zones as z (z)}
-									<option value={z}>{z.replaceAll('_', ' ')}</option>
-								{/each}
-							</select>
-						</label>
-					{/if}
 					<input
 						class="name"
 						type="text"
@@ -390,6 +393,15 @@
 							»
 						</button>
 					</div>
+					{#if zoneOpen}
+						<label class="tz">
+							<select aria-label="Time zone" bind:value={viewTz}>
+								{#each zones as z (z)}
+									<option value={z}>{z.replaceAll('_', ' ')}</option>
+								{/each}
+							</select>
+						</label>
+					{/if}
 				</div>
 			</header>
 			<div class="frame" tabindex="-1">
@@ -664,21 +676,20 @@
 
 	.tz {
 		display: block;
-		margin: var(--space-2) 0 0;
+		max-width: 100%;
 	}
 
 	.tz select {
 		appearance: none;
-		max-width: 100%;
+		max-width: 14rem;
 		margin: 0;
 		border: 0;
-		border-bottom: 1px solid var(--line);
-		border-radius: 0;
-		background: transparent;
+		border-radius: 0.55rem;
+		background: var(--bg);
 		color: var(--muted);
 		font: inherit;
-		font-size: 0.8rem;
-		padding: 0.15rem 0;
+		font-size: 0.75rem;
+		padding: 0.45rem 0.7rem;
 	}
 
 	.shap,
