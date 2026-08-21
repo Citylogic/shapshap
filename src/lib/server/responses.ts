@@ -174,3 +174,14 @@ export async function deleteResponse(
 	`;
 	return { ok: true, status: 204 };
 }
+
+export async function listResponses(meetingId: string): Promise<ResponseJson[]> {
+	if (!isValidId(meetingId)) return [];
+	const sql = getSql();
+	const rows = await sql<ResponseRow[]>`
+		SELECT participant_id, name, slots, updated_at
+		FROM responses
+		WHERE meeting_id = ${meetingId}
+	`;
+	return rows.map(toResponse);
+}
