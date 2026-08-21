@@ -163,6 +163,28 @@ describe('generateSlots', () => {
 		expect(slots[0]?.localTime).toBe('08:00');
 		expect(slots[31]?.localTime).toBe('23:30');
 	});
+
+	it('omits Saturday and Sunday when includeWeekends is false', () => {
+		const input: MeetingWindow = {
+			startsOn: '2026-08-17',
+			endsOn: '2026-08-23',
+			windowStart: '08:00',
+			windowEnd: '20:00',
+			slotMinutes: 30,
+			tz: 'Africa/Johannesburg',
+			includeWeekends: false
+		};
+		const size = gridSize(input);
+		expect(size.days).toBe(5);
+		expect(size.slotsPerDay).toBe(24);
+		expect(size.slotCount).toBe(120);
+		const slots = generateSlots(input);
+		expect(slots).toHaveLength(120);
+		expect(slots[0]?.localDate).toBe('2026-08-17');
+		expect(slots[slots.length - 1]?.localDate).toBe('2026-08-21');
+		expect(slots.some((s) => s.localDate === '2026-08-22')).toBe(false);
+		expect(slots.some((s) => s.localDate === '2026-08-23')).toBe(false);
+	});
 });
 
 describe('expiresAt', () => {
