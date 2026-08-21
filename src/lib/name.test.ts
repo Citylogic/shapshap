@@ -1,26 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { looksLikeContact, parseName } from './name';
+import { initials, looksLikeContact, parseName } from './name';
 
 describe('parseName', () => {
-	it('accepts a first name and initial', () => {
-		expect(parseName('Ada L')).toEqual({ ok: true, name: 'Ada L' });
+	it('accepts a first and last name', () => {
+		expect(parseName('Ada Lovelace')).toEqual({ ok: true, name: 'Ada Lovelace' });
+		expect(parseName('  Ada   L  ')).toEqual({ ok: true, name: 'Ada L' });
 	});
 
-	it('treats missing or blank as null', () => {
-		expect(parseName(undefined)).toEqual({ ok: true, name: null });
-		expect(parseName(null)).toEqual({ ok: true, name: null });
-		expect(parseName('  ')).toEqual({ ok: true, name: null });
+	it('rejects missing, blank, or a single word', () => {
+		expect(parseName(undefined)).toEqual({ ok: false, reason: 'missing' });
+		expect(parseName(null)).toEqual({ ok: false, reason: 'missing' });
+		expect(parseName('  ')).toEqual({ ok: false, reason: 'missing' });
+		expect(parseName('Ada')).toEqual({ ok: false, reason: 'missing' });
 	});
 
-	it('rejects over 24 characters with a length reason', () => {
-		expect(parseName('a'.repeat(25))).toEqual({ ok: false, reason: 'length' });
-		expect(parseName('a'.repeat(24))).toEqual({ ok: true, name: 'a'.repeat(24) });
+	it('rejects over 40 characters with a length reason', () => {
+		expect(parseName(`Ada ${'b'.repeat(37)}`)).toEqual({ ok: false, reason: 'length' });
+		expect(parseName(`Ada ${'b'.repeat(36)}`)).toEqual({
+			ok: true,
+			name: `Ada ${'b'.repeat(36)}`
+		});
 	});
 
 	it('rejects email-like and phone-like strings', () => {
 		expect(parseName('ada@example.com')).toEqual({ ok: false, reason: 'contact' });
 		expect(parseName('+27 82 123 4567')).toEqual({ ok: false, reason: 'contact' });
 		expect(parseName('0821234567')).toEqual({ ok: false, reason: 'contact' });
+	});
+});
+
+describe('initials', () => {
+	it('takes the first letter of the first and last words', () => {
+		expect(initials('Ada Lovelace')).toBe('AL');
+		expect(initials('Mary Ann Smith')).toBe('MS');
+		expect(initials('Ada')).toBe('');
 	});
 });
 
