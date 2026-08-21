@@ -14,6 +14,7 @@
 		/** First visible day index; omit `pageSize` to show every column. */
 		pageStart?: number;
 		pageSize?: number;
+		best?: ReadonlySet<number>;
 		onChange?: (selected: ReadonlySet<number>) => void;
 		onPeek?: (index: number | null) => void;
 	};
@@ -26,6 +27,7 @@
 		today = '',
 		pageStart = 0,
 		pageSize,
+		best = new Set(),
 		onChange,
 		onPeek
 	}: Props = $props();
@@ -177,6 +179,7 @@
 					{@const time = model.times[cell.slotInDay]}
 					{@const on = cell.exists && current().has(cell.index)}
 					{@const level = cell.exists ? (density[cell.index] ?? 0) : 0}
+					{@const isBest = cell.exists && best.has(cell.index)}
 					<div
 						class="cell"
 						class:gap={!cell.exists}
@@ -188,9 +191,12 @@
 						role="gridcell"
 						aria-disabled={!cell.exists ? true : undefined}
 						aria-selected={on}
-						aria-label={time ? `${col.header.weekday} ${col.header.date}, ${time.time}` : undefined}
+						aria-label={time
+							? `${col.header.weekday} ${col.header.date}, ${time.time}${isBest ? ', Best' : ''}`
+							: undefined}
 						data-slot={cell.exists ? String(cell.index) : undefined}
 						data-density={level || undefined}
+						data-best={isBest ? '' : undefined}
 					>
 						{#if on}
 							<span class="mark" aria-hidden="true">✓</span>
