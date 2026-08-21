@@ -56,7 +56,7 @@ test('new visitor is gated by the entry modal until first and last name', async 
 
 	const dialog = page.getByRole('dialog');
 	await expect(dialog).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'When are you free?' })).toBeVisible();
+	await expect(dialog.getByRole('heading', { name: 'When are you free?' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
 	await page.getByLabel('First name').fill('Ada');
 	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
@@ -226,6 +226,8 @@ test('second visitor sees overlap after copy-link and paint', async ({
 	const cell = otherPage.locator('[data-slot="0"]');
 	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
 	await expect(otherPage.getByText('2 RESPONDENTS')).toBeVisible();
+	await expect(otherPage.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
+	await expect(otherPage.getByRole('button', { name: 'Bea Miller' })).toBeVisible();
 	await other.close();
 });
 
@@ -280,4 +282,25 @@ test('expired meeting shows the gone page', async ({ page }) => {
 	await expect(page.getByText("There's no archive and no copy.")).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Start a new one →' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: /expired/i })).toHaveCount(0);
+});
+
+async function assertNoWeekendColumns(page: Page) {
+	const next = page.getByRole('button', { name: 'Next days' });
+	const first = page.getByRole('button', { name: 'First days' });
+	if (await first.isEnabled()) await first.click();
+	for (;;) {
+		await expect(page.getByRole('group', { name: /^Saturday / })).toHaveCount(0);
+		await expect(page.getByRole('group', { name: /^Sunday / })).toHaveCount(0);
+		if (await next.isDisabled()) break;
+		await next.click();
+	}
+}
+
+test('weekends-off meeting has no Saturday or Sunday columns', async ({ page }) => {
+	await page.goto('/');
+	await fillSetup(page);
+	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
+	await expect(page).toHaveURL(/\/m\/[A-Za-z0-9_-]{22}$/);
+	await enterDisplayName(page);
+	await assertNoWeekendColumns(page);
 });
