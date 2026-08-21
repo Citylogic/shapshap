@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createMeeting, fillSetup } from '../../e2e/flow';
+import { createMeeting, enterDisplayName, fillSetup } from '../../e2e/flow';
 
 const LINK_RE = /\/m\/[A-Za-z0-9_-]{22}$/;
 
@@ -39,6 +39,7 @@ test('generate lands on the meeting with a copyable link', async ({ page }) => {
 	await fillSetup(page, { weekends: true });
 	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
 	await expect(page).toHaveURL(LINK_RE);
+	await enterDisplayName(page);
 
 	const copy = page.getByRole('button', { name: 'Copy link' });
 	await expect(copy).toBeVisible();
