@@ -51,16 +51,46 @@ test('createMeeting helper reaches a named grid', async ({ page }) => {
 	await createMeeting(page);
 	await expect(page.getByPlaceholder(/^Guest /)).toHaveValue('Ada Lovelace');
 	await expect(page.locator('[data-slot="0"]')).toBeVisible();
+	await expect(
+		page.getByText("This link is the only way back in. We can't recover it and neither can you.")
+	).toBeVisible();
 });
 
 test('How it works opens the trust note', async ({ page }) => {
 	await page.goto('/');
-	const why = page.getByRole('link', { name: 'How it works' });
+	const why = page.getByRole('link', { name: 'How it works' }).first();
 	await expect(why).toHaveAttribute('href', /why/);
-	await page.goto('/why');
+	await why.click();
 	await expect(page).toHaveURL(/\/why$/);
 	await expect(page.getByText('No accounts, and not much kept.')).toBeVisible();
+	await expect(page.getByText('We can read that.')).toBeVisible();
+	await expect(
+		page.getByText('We do not log names, organisation, or meeting label.')
+	).toBeVisible();
 	await expect(page.getByText('github.com/Citylogic/shapshap')).toBeVisible();
+	await expect(page.getByText('Welcome')).toHaveCount(0);
+	await expect(page.getByText(/encrypted/i)).toHaveCount(0);
+});
+
+test('Terms and Privacy pages are honest and linked from the footer', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('link', { name: 'Terms & Conditions' }).first().click();
+	await expect(page).toHaveURL(/\/terms$/);
+	await expect(page.getByRole('heading', { name: 'Terms & Conditions' })).toBeVisible();
+	await expect(page.getByText('A meeting is a link.')).toBeVisible();
+	await expect(page.getByText('We can read that.')).toBeVisible();
+	await expect(page.getByText(/encrypted/i)).toHaveCount(0);
+
+	await page.getByRole('link', { name: 'Privacy Policy' }).first().click();
+	await expect(page).toHaveURL(/\/privacy$/);
+	await expect(page.getByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
+	await expect(
+		page.getByText('We never ask for an email address, and there is no account.')
+	).toBeVisible();
+	await expect(
+		page.getByText('We do not log names, organisation, or meeting label.')
+	).toBeVisible();
+	await expect(page.getByText(/encrypted/i)).toHaveCount(0);
 });
 
 test('dev grid preview is not a product route', async ({ page }) => {
