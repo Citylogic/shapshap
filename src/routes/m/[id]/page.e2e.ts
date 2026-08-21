@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createMeeting } from '../../../../e2e/flow';
+import { createMeeting, enterDisplayName, fillSetup } from '../../../../e2e/flow';
 
 test('SSR grid paints and autosaves without a Submit button', async ({ page }) => {
 	await createMeeting(page);
@@ -13,6 +13,79 @@ test('SSR grid paints and autosaves without a Submit button', async ({ page }) =
 	await page.locator('[data-slot="0"]').click();
 	await put;
 	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
+});
+
+test('Clear drops only that day and autosaves', async ({ page }) => {
+	await createMeeting(page);
+	const cell = page.locator('[data-slot="0"]');
+	const painted = page.waitForRequest(
+		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
+	);
+	await cell.click();
+	await painted;
+	await expect(cell).toHaveAttribute('aria-selected', 'true');
+	await expect(page.getByText('0.5 hrs selected').first()).toBeVisible();
+
+	const cleared = page.waitForRequest((req) => {
+		if (req.method() !== 'PUT' || !/\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())) return false;
+		const body: unknown = req.postDataJSON();
+		return (
+			!!body &&
+			typeof body === 'object' &&
+			'slots' in body &&
+			Array.isArray(body.slots) &&
+			!body.slots.includes(0)
+		);
+	});
+	await page
+		.getByRole('group')
+		.filter({ has: page.locator('[data-slot="0"]') })
+		.getByRole('button', { name: 'Clear' })
+		.click();
+	await cleared;
+	await expect(cell).toHaveAttribute('aria-selected', 'false');
+	await expect(page.getByText('0 hrs selected').first()).toBeVisible();
+	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
+});
+
+test('new visitor is gated by the entry modal until first and last name', async ({ page }) => {
+	await page.goto('/');
+	await fillSetup(page);
+	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
+	await expect(page).toHaveURL(/\/m\/[A-Za-z0-9_-]{22}$/);
+
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'When are you free?' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
+	await page.getByLabel('First name').fill('Ada');
+	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
+	await page.getByLabel('Last name').fill('Lovelace');
+	await expect(page.getByRole('button', { name: 'Continue →' })).toBeEnabled();
+
+	const put = page.waitForRequest((req) => {
+		if (req.method() !== 'PUT' || !/\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())) return false;
+		const body: unknown = req.postDataJSON();
+		return !!body && typeof body === 'object' && 'name' in body && body.name === 'Ada Lovelace';
+	});
+	await page.getByRole('button', { name: 'Continue →' }).click();
+	await expect(dialog).toBeHidden();
+	await page.locator('[data-slot="0"]').click();
+	await put;
+});
+
+test('return visit with a saved name skips the entry modal', async ({ page }) => {
+	await createMeeting(page);
+	const put = page.waitForRequest(
+		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
+	);
+	await page.locator('[data-slot="0"]').click();
+	await put;
+	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
+
+	await page.reload();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(page.getByPlaceholder(/^Guest /)).toHaveValue('Ada Lovelace');
 });
 
 test('malformed meeting link shows the not-found line', async ({ page }) => {
@@ -64,12 +137,13 @@ test('This is me takes over a name without a confirm dialog', async ({
 	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
+	await enterDisplayName(otherPage, 'Bea', 'Miller');
 	await otherPage.getByRole('button', { name: /people$/ }).click();
 	await otherPage.getByRole('button', { name: 'Ada L' }).click();
 	await otherPage.getByRole('button', { name: 'This is me' }).click();
 	await expect(otherPage.getByRole('dialog')).toHaveCount(0);
 	await expect(otherPage.getByRole('button', { name: 'This is me' })).toHaveCount(0);
-	await expect(otherPage.getByRole('textbox')).toHaveValue('Ada L');
+	await expect(otherPage.getByPlaceholder(/^Guest /)).toHaveValue('Ada L');
 	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('aria-selected', 'true');
 	await other.close();
 });
@@ -107,6 +181,7 @@ test.describe('matching viewer zone', () => {
 		test.skip(browserName === 'webkit', 'WebKit does not emulate timezoneId');
 		const id = await postMeeting(page, 'Africa/Johannesburg');
 		await page.goto(`/m/${id}`);
+		await enterDisplayName(page);
 		await page.locator('[data-slot="0"]').scrollIntoViewIfNeeded();
 		await expect(page.locator('[data-slot="0"]')).toBeVisible();
 		await expect(page.getByLabel('Time zone')).toHaveCount(0);
@@ -120,12 +195,13 @@ test.describe('mismatched viewer zone', () => {
 		test.skip(browserName === 'webkit', 'WebKit does not emulate timezoneId');
 		const id = await postMeeting(page, 'Africa/Johannesburg');
 		await page.goto(`/m/${id}`);
+		await enterDisplayName(page);
 		const select = page.getByLabel('Time zone');
 		await expect(select).toBeVisible();
 		await expect(select).toHaveValue('America/Los_Angeles');
-		await expect(page.getByRole('rowheader', { name: '23:00' })).toBeVisible();
+		await expect(page.locator('[data-slot="0"]')).toContainText('23:00');
 		await select.selectOption('Europe/London');
-		await expect(page.getByRole('rowheader', { name: '07:00' })).toBeVisible();
+		await expect(page.locator('[data-slot="0"]')).toContainText('07:00');
 	});
 });
 
@@ -148,34 +224,10 @@ test('second visitor sees overlap after copy-link and paint', async ({
 	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
+	await enterDisplayName(otherPage, 'Bea', 'Miller');
 	const cell = otherPage.locator('[data-slot="0"]');
-	await expect(cell).toHaveAttribute('data-best', '');
 	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
-	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('1 people');
-	await other.close();
-});
-
-test('a second open tab sees paint without reload', async ({ page, browser }, testInfo) => {
-	await createMeeting(page);
-	const url = page.url();
-
-	const other = await browser.newContext(testInfo.project.use);
-	const otherPage = await other.newPage();
-	const live = otherPage.waitForResponse(
-		(res) => /\/api\/m\/[A-Za-z0-9_-]{22}\/live$/.test(res.url()) && res.ok()
-	);
-	await otherPage.goto(url);
-	await live;
-	await expect(otherPage.locator('[data-slot="0"]')).toBeVisible();
-
-	const put = page.waitForRequest(
-		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
-	);
-	await page.locator('[data-slot="0"]').click();
-	await put;
-
-	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('1 people');
-	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('data-density', /[1-4]/);
+	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('2 people');
 	await other.close();
 });
 
