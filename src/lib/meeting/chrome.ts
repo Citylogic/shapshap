@@ -74,11 +74,7 @@ export function formatDateRange(
 }
 
 /** `30 MIN · 20–28 AUG` — slot length plus the meeting’s civil date span. */
-export function formatMeetingMeta(
-	slotMinutes: number,
-	startsOn: string,
-	endsOn: string
-): string {
+export function formatMeetingMeta(slotMinutes: number, startsOn: string, endsOn: string): string {
 	return `${slotMinutes} MIN · ${formatDateRange(startsOn, endsOn, 'upper')}`;
 }
 
