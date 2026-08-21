@@ -6,9 +6,9 @@
 	<main>
 		<p class="lead">No accounts, and not much kept.</p>
 		<p>
-			You never sign in and we never ask for an email address. A meeting is just a link. Anyone who
-			has that link can see it, change it, or delete it — including other people's answers. Send it
-			to people you'd meet.
+			You never sign in and we never ask for an email address. A meeting is a link. Anyone who has
+			that link can see it, change it, or delete it — including other people's answers. Send it to
+			people you'd meet.
 		</p>
 		<p>
 			We store the days and times you picked, the name each person types, and the slots they marked.
