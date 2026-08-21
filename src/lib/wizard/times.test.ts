@@ -50,11 +50,14 @@ describe('createBody', () => {
 	it('sends S09 days, HH:MM window, browser tz, and fixed 30-minute slots', () => {
 		const body = createBody({ start: '2026-08-17', end: '2026-08-21' }, '08:00:00', '20:00:00');
 		expect(body).toEqual({
+			organisation: '',
+			meeting_label: '',
 			starts_on: '2026-08-17',
 			ends_on: '2026-08-21',
 			window_start: '08:00',
 			window_end: '20:00',
 			slot_minutes: SLOT_MINUTES,
+			include_weekends: false,
 			tz: creatorTz()
 		});
 		expect(body.slot_minutes).toBe(30);
