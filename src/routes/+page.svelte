@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Footer from '$lib/chrome/Footer.svelte';
 	import Days from '$lib/wizard/Days.svelte';
 	import Link from '$lib/wizard/Link.svelte';
 	import Times from '$lib/wizard/Times.svelte';
@@ -79,36 +80,24 @@
 		{/if}
 	</main>
 
-	<footer>
-		<p>No accounts. Deleted after.</p>
-		<a href={resolve('/why')}>Why →</a>
-	</footer>
+	<Footer />
 </div>
 
 <style>
-	:global(html, body) {
-		margin: 0;
-		background: #f3efe6;
-	}
-
 	.page {
-		--bg: #f3efe6;
-		--ink: #1c1a16;
-		--muted: #8a8578;
-		--line: #d9d3c6;
 		--cell: #fffcf5;
 		--self: #2c6b4a;
 		--self-soft: #c9e2d3;
 		box-sizing: border-box;
 		min-height: 100dvh;
 		margin: 0 auto;
-		padding: 1.25rem 1.25rem 1.5rem;
+		padding: 1.25rem 1.25rem 0;
 		max-width: 28rem;
 		display: flex;
 		flex-direction: column;
 		background: var(--bg);
 		color: var(--ink);
-		font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		font-family: var(--font-sans);
 	}
 
 	.wordmark {
@@ -166,24 +155,5 @@
 		margin: 0;
 		font-size: 1rem;
 		line-height: 1.45;
-	}
-
-	footer {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: 1rem;
-		margin-top: 2rem;
-		color: var(--muted);
-		font-size: 0.8rem;
-	}
-
-	footer p {
-		margin: 0;
-	}
-
-	footer a {
-		color: inherit;
-		text-decoration: none;
 	}
 </style>

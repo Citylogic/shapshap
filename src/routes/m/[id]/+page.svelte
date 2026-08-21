@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
+	import Footer from '$lib/chrome/Footer.svelte';
 	import Grid from '$lib/grid/Grid.svelte';
 	import { relabelGridModel } from '$lib/grid/model';
 	import {
@@ -296,26 +297,20 @@
 			<h1>{data.message}</h1>
 		</main>
 	{/if}
+	<Footer />
 </div>
 
 <style>
-	:global(html, body) {
-		margin: 0;
-		background: #f3efe6;
-	}
-
 	.page {
-		--bg: #f3efe6;
-		--ink: #1c1a16;
-		--muted: #8a8578;
-		--line: #d9d3c6;
 		box-sizing: border-box;
 		min-height: 100dvh;
 		margin: 0;
-		padding: 0.75rem 0.75rem 1.5rem;
+		padding: 0.75rem 0.75rem 0;
+		display: flex;
+		flex-direction: column;
 		background: var(--bg);
 		color: var(--ink);
-		font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		font-family: var(--font-sans);
 	}
 
 	header {

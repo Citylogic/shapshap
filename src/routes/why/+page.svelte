@@ -37,14 +37,7 @@
 </div>
 
 <style>
-	:global(html, body) {
-		margin: 0;
-		background: #f3efe6;
-	}
-
 	.page {
-		--bg: #f3efe6;
-		--ink: #1c1a16;
 		box-sizing: border-box;
 		min-height: 100dvh;
 		margin: 0 auto;
@@ -52,7 +45,7 @@
 		max-width: 28rem;
 		background: var(--bg);
 		color: var(--ink);
-		font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		font-family: var(--font-sans);
 	}
 
 	main {

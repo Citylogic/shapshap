@@ -8,8 +8,8 @@ test('home is wizard step 1', async ({ page }) => {
 	await expect(page.getByText('shapshap', { exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Which days?' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Times →' })).toBeDisabled();
-	await expect(page.getByText('No accounts. Deleted after.')).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Why →' })).toBeVisible();
+	await expect(page.getByText('No account needed')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'How it works' })).toBeVisible();
 	await expect(page.getByText('Welcome')).toHaveCount(0);
 	await expect(page.getByText('Get started')).toHaveCount(0);
 	await expect(page.locator('input, textarea')).toHaveCount(0);
@@ -52,9 +52,9 @@ test('days then times then a full copyable link', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Add your times →' })).toBeVisible();
 });
 
-test('Why opens the trust note', async ({ page }) => {
+test('How it works opens the trust note', async ({ page }) => {
 	await page.goto('/');
-	const why = page.getByRole('link', { name: 'Why →' });
+	const why = page.getByRole('link', { name: 'How it works' });
 	await expect(why).toHaveAttribute('href', /why/);
 	await page.goto('/why');
 	await expect(page).toHaveURL(/\/why$/);
