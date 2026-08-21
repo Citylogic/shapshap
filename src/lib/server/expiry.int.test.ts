@@ -24,6 +24,7 @@ describe('expiry deletion', () => {
 	});
 
 	it('hard-deletes expired meetings and cascaded responses', async () => {
+		// ON DELETE CASCADE on responses.meeting_id still clears response rows.
 		await sql`TRUNCATE meetings CASCADE`;
 
 		const meetingId = newId();
@@ -58,10 +59,14 @@ describe('expiry deletion', () => {
 		expect(responseRows[0]?.responses).toBe(0);
 	});
 
-	it('schema has no title or email columns', async () => {
-		const sqlFile = readFileSync(resolve('db/migrations/001_init.sql'), 'utf8');
-		expect(sqlFile).not.toMatch(/\btitle\b/i);
-		expect(sqlFile).not.toMatch(/\bemail\b/i);
+	it('schema has org, label, weekends, and still no email', async () => {
+		const initSql = readFileSync(resolve('db/migrations/001_init.sql'), 'utf8');
+		const orgSql = readFileSync(resolve('db/migrations/002_org_label_weekends.sql'), 'utf8');
+		expect(initSql).not.toMatch(/\bemail\b/i);
+		expect(orgSql).not.toMatch(/\bemail\b/i);
+		expect(orgSql).toMatch(/\borganisation\b/);
+		expect(orgSql).toMatch(/\bmeeting_label\b/);
+		expect(orgSql).toMatch(/\binclude_weekends\b/);
 
 		const cols = await sql<{ column_name: string }[]>`
 			SELECT column_name
@@ -72,6 +77,9 @@ describe('expiry deletion', () => {
 		const names = cols.map((c) => c.column_name);
 		expect(names).not.toContain('title');
 		expect(names).not.toContain('email');
+		expect(names).toContain('organisation');
+		expect(names).toContain('meeting_label');
+		expect(names).toContain('include_weekends');
 		expect(names).toContain('expires_at');
 		expect(names).toContain('slots');
 	});
