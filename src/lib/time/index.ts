@@ -16,6 +16,8 @@ export type MeetingWindow = {
 	windowEnd: string;
 	tz: string;
 	slotMinutes?: SlotMinutes;
+	/** When false, Saturday and Sunday columns are omitted. Default true. */
+	includeWeekends?: boolean;
 };
 
 export type GridSize = {
@@ -66,7 +68,15 @@ function localTimes(
 	return times;
 }
 
-function eachDate(startsOn: string, endsOn: string): Temporal.PlainDate[] {
+function isWeekend(date: Temporal.PlainDate): boolean {
+	return date.dayOfWeek === 6 || date.dayOfWeek === 7;
+}
+
+function eachDate(
+	startsOn: string,
+	endsOn: string,
+	includeWeekends: boolean
+): Temporal.PlainDate[] {
 	const start = Temporal.PlainDate.from(startsOn);
 	const end = Temporal.PlainDate.from(endsOn);
 	if (Temporal.PlainDate.compare(end, start) < 0) {
@@ -74,6 +84,7 @@ function eachDate(startsOn: string, endsOn: string): Temporal.PlainDate[] {
 	}
 	const dates: Temporal.PlainDate[] = [];
 	for (let d = start; Temporal.PlainDate.compare(d, end) <= 0; d = d.add({ days: 1 })) {
+		if (!includeWeekends && isWeekend(d)) continue;
 		dates.push(d);
 	}
 	return dates;
@@ -92,15 +103,19 @@ function instantAt(
 	return zdt.toInstant();
 }
 
+function weekendsOf(input: MeetingWindow): boolean {
+	return input.includeWeekends !== false;
+}
+
 export function gridSize(input: MeetingWindow): GridSize {
-	const days = eachDate(input.startsOn, input.endsOn).length;
+	const days = eachDate(input.startsOn, input.endsOn, weekendsOf(input)).length;
 	const slotsPerDay = localTimes(input.windowStart, input.windowEnd, slotMinutesOf(input)).length;
 	return { days, slotsPerDay, slotCount: days * slotsPerDay };
 }
 
 export function generateSlots(input: MeetingWindow): Slot[] {
 	const minutes = slotMinutesOf(input);
-	const dates = eachDate(input.startsOn, input.endsOn);
+	const dates = eachDate(input.startsOn, input.endsOn, weekendsOf(input));
 	const times = localTimes(input.windowStart, input.windowEnd, minutes);
 	const slotsPerDay = times.length;
 	const slots: Slot[] = [];
