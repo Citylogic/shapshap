@@ -1,23 +1,24 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Today's cell — in view on a phone, and not already expired. */
-export async function pickDay(page: Page) {
-	const now = new Date();
-	const ymd = [
-		now.getFullYear(),
-		String(now.getMonth() + 1).padStart(2, '0'),
-		String(now.getDate()).padStart(2, '0')
-	].join('-');
-	const day = page.locator(`[data-date="${ymd}"]`);
-	await day.scrollIntoViewIfNeeded();
-	await day.click();
+export async function fillSetup(
+	page: Page,
+	opts: { org?: string; label?: string; weekends?: boolean } = {}
+) {
+	await page.getByLabel('Organisation / Company').fill(opts.org ?? 'ABC Organisation');
+	await page.getByLabel('Meeting label').fill(opts.label ?? 'Q4 planning sync');
+	if (opts.weekends) {
+		await page.getByRole('switch', { name: 'Include weekends' }).click();
+	}
+}
+
+export async function enterDisplayName(page: Page, name = 'Ada Lovelace') {
+	await page.getByPlaceholder(/^Guest /).fill(name);
 }
 
 export async function createMeeting(page: Page) {
 	await page.goto('/');
-	await pickDay(page);
-	await page.getByRole('button', { name: 'Times →' }).click();
-	await page.getByRole('button', { name: 'Get the link →' }).click();
-	await page.getByRole('button', { name: 'Add your times →' }).click();
+	await fillSetup(page);
+	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
 	await expect(page).toHaveURL(/\/m\/[A-Za-z0-9_-]{22}$/);
+	await enterDisplayName(page);
 }
