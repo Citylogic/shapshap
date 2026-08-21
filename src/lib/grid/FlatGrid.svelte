@@ -48,9 +48,7 @@
 	let lastY = 0;
 
 	function current(): ReadonlySet<number> {
-		paintTick;
-		if (painting) return live;
-		return fromParent;
+		return paintTick >= 0 && painting ? live : fromParent;
 	}
 
 	function commit(next: Set<number>) {
