@@ -11,13 +11,13 @@
 			people you'd meet.
 		</p>
 		<p>
-			We store the days and times you picked, the name each person types, and the slots they marked.
-			We can read that. It's on one server in London, it isn't sold or shared, and it isn't used for
-			anything except showing you the overlap.
+			We store the organisation, the meeting label, the days and times you picked, the name each
+			person types, and the slots they marked. We can read that. It's on one server in London, it
+			isn't sold or shared, and it isn't used for anything except showing you the overlap.
 		</p>
 		<p>
-			Use a first name and an initial. There's no subject line on purpose — don't put one in the
-			name field.
+			Use a first and last name. Organisation and meeting label are visible to anyone with the link
+			— don't put anything there you wouldn't say in the group.
 		</p>
 		<p>
 			We keep server logs to run the service, with the meeting's ID stripped out of them. We
