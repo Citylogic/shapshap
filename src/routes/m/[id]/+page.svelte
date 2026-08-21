@@ -6,6 +6,19 @@
 	import Footer from '$lib/chrome/Footer.svelte';
 	import EntryModal from '$lib/meeting/EntryModal.svelte';
 	import { needsEntry } from '$lib/meeting/entry';
+	import {
+		PAGE_SIZE,
+		clampPageStart,
+		formatMeetingMeta,
+		formatOrgLabel,
+		jumpEnd,
+		respondentCountLabel,
+		respondentMark,
+		shiftPage,
+		todayPageStart,
+		truncateLink,
+		visibleRangeLabel
+	} from '$lib/meeting/chrome';
 	import FlatGrid from '$lib/grid/FlatGrid.svelte';
 	import { todayIso } from '$lib/grid/flat';
 	import { relabelGridModel } from '$lib/grid/model';
@@ -36,8 +49,9 @@
 	let ephemeral = $state(true);
 	let booted = $state(false);
 	let entered = $state(false);
-	let listOpen = $state(false);
 	let picked = $state<string | null>(null);
+	let pageStart = $state(0);
+	let paged = $state(false);
 	let inflight = false;
 	let queued = false;
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -73,7 +87,27 @@
 	let density = $derived(overlap ? densityLevels(overlap.counts, overlap.total) : []);
 	let people = $derived(livePeople.length);
 	let href = $derived(browser ? window.location.href : '');
+	let linkLabel = $derived(href ? truncateLink(href) : '');
 	let today = $derived(displayTz ? todayIso(displayTz) : '');
+	let kicker = $derived(
+		data.status === 'ok'
+			? formatOrgLabel(data.meeting.organisation, data.meeting.meeting_label)
+			: ''
+	);
+	let meta = $derived(
+		data.status === 'ok'
+			? formatMeetingMeta(
+					data.meeting.slot_minutes,
+					data.meeting.starts_on,
+					data.meeting.ends_on
+				)
+			: ''
+	);
+	let dayDates = $derived(model ? model.days.map((d) => d.date) : []);
+	let dayCount = $derived(dayDates.length);
+	let windowStart = $derived(clampPageStart(pageStart, dayCount));
+	let canPage = $derived(dayCount > PAGE_SIZE);
+	let windowLabel = $derived(visibleRangeLabel(dayDates, windowStart));
 
 	let peekIndex = $state<number | null>(null);
 	let peek = $derived.by(() => {
@@ -112,6 +146,12 @@
 		const tz = viewerTz();
 		detectedTz = tz;
 		viewTz = tz;
+	});
+
+	$effect(() => {
+		if (paged || !model || !today) return;
+		paged = true;
+		pageStart = todayPageStart(dayDates, today);
 	});
 
 	function onEntry(display: string) {
@@ -211,6 +251,14 @@
 		picked = null;
 		writeClaim(data.meeting.id, person.participant_id, localStorage);
 	}
+
+	function togglePerson(id: string) {
+		picked = picked === id ? null : id;
+	}
+
+	function goPage(next: number) {
+		pageStart = clampPageStart(next, dayCount);
+	}
 </script>
 
 <div class="page">
@@ -220,63 +268,114 @@
 		{/if}
 		<div class="work" inert={showEntry ? true : undefined}>
 			<header>
-				<input
-					class="name"
-					type="text"
-					maxlength={NAME_MAX}
-					{placeholder}
-					autocomplete="off"
-					spellcheck="false"
-					bind:value={name}
-					oninput={scheduleSave}
-				/>
-				<button
-					type="button"
-					class="people"
-					aria-expanded={listOpen}
-					onclick={() => (listOpen = !listOpen)}
-				>
-					{people} people
-				</button>
-				<button type="button" class="copy" onclick={copyLink}>
-					{copied ? 'Copied' : 'Copy link'}
-				</button>
-				{#if zoneOpen}
-					<label class="tz">
-						<select aria-label="Time zone" bind:value={viewTz}>
-							{#each zones as z (z)}
-								<option value={z}>{z.replaceAll('_', ' ')}</option>
-							{/each}
-						</select>
-					</label>
-				{/if}
-				{#if shap}
-					<p class="shap">Shap</p>
-				{/if}
-				{#if error}
-					<p class="err">{error}</p>
-				{/if}
-				{#if listOpen}
-					<ul class="names">
-						{#each livePeople as person, i (person.participant_id)}
-							<li>
-								<button
-									type="button"
-									class="who"
-									onclick={() =>
-										(picked = picked === person.participant_id ? null : person.participant_id)}
-								>
-									{displayName(person.name, i)}
-								</button>
-								{#if picked === person.participant_id && person.participant_id !== participantId}
-									<button type="button" class="take" onclick={() => void takeOver(person)}>
-										This is me
+				<div class="intro">
+					<p class="kicker">{kicker}</p>
+					<h1>When are you free?</h1>
+					<p class="meta">{meta}</p>
+					{#if zoneOpen}
+						<label class="tz">
+							<select aria-label="Time zone" bind:value={viewTz}>
+								{#each zones as z (z)}
+									<option value={z}>{z.replaceAll('_', ' ')}</option>
+								{/each}
+							</select>
+						</label>
+					{/if}
+					<input
+						class="name"
+						type="text"
+						maxlength={NAME_MAX}
+						{placeholder}
+						autocomplete="off"
+						spellcheck="false"
+						aria-label="Your name"
+						bind:value={name}
+						oninput={scheduleSave}
+					/>
+					{#if shap}
+						<p class="shap">Shap</p>
+					{/if}
+					{#if error}
+						<p class="err">{error}</p>
+					{/if}
+					<div class="people">
+						<p class="count">{respondentCountLabel(people)}</p>
+						<ul class="marks">
+							{#each livePeople as person, i (person.participant_id)}
+								<li>
+									<button
+										type="button"
+										class="mark"
+										class:mine={person.participant_id === participantId}
+										class:open={picked === person.participant_id}
+										aria-expanded={picked === person.participant_id}
+										aria-label={displayName(person.name, i)}
+										onclick={() => togglePerson(person.participant_id)}
+									>
+										{respondentMark(person.name, i)}
 									</button>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{/if}
+									{#if picked === person.participant_id}
+										<div class="who">
+											<p>{displayName(person.name, i)}</p>
+											{#if person.participant_id !== participantId}
+												<button type="button" class="take" onclick={() => void takeOver(person)}>
+													This is me
+												</button>
+											{/if}
+										</div>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+				<div class="tools">
+					<div class="share">
+						<p class="url" title={href}>{linkLabel}</p>
+						<button type="button" class="copy" onclick={copyLink}>
+							{copied ? 'Copied' : 'Copy link'}
+						</button>
+					</div>
+					<div class="pager" role="group" aria-label="Days">
+						<button
+							type="button"
+							class="nav"
+							aria-label="First days"
+							disabled={!canPage || windowStart === 0}
+							onclick={() => goPage(0)}
+						>
+							«
+						</button>
+						<button
+							type="button"
+							class="nav"
+							aria-label="Previous days"
+							disabled={!canPage || windowStart === 0}
+							onclick={() => goPage(shiftPage(windowStart, -1, dayCount))}
+						>
+							‹
+						</button>
+						<p class="window">{windowLabel}</p>
+						<button
+							type="button"
+							class="nav"
+							aria-label="Next days"
+							disabled={!canPage || windowStart >= jumpEnd(dayCount)}
+							onclick={() => goPage(shiftPage(windowStart, 1, dayCount))}
+						>
+							›
+						</button>
+						<button
+							type="button"
+							class="nav"
+							aria-label="Last days"
+							disabled={!canPage || windowStart >= jumpEnd(dayCount)}
+							onclick={() => goPage(jumpEnd(dayCount))}
+						>
+							»
+						</button>
+					</div>
+				</div>
 			</header>
 			<div class="frame" tabindex="-1">
 				{#if model}
@@ -286,6 +385,8 @@
 						{density}
 						slotMinutes={data.meeting.slot_minutes}
 						{today}
+						pageStart={windowStart}
+						pageSize={PAGE_SIZE}
 						onChange={(next) => {
 							selected = next;
 							scheduleSave();
@@ -327,83 +428,252 @@
 		box-sizing: border-box;
 		min-height: 100dvh;
 		margin: 0;
-		padding: 0.75rem 0.75rem 0;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--bg);
+		background: var(--bg-soft);
 		color: var(--ink);
 		font-family: var(--font-sans);
+	}
+
+	.work {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		padding: var(--space-5) var(--space-5) 0;
 	}
 
 	header {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.75rem 1rem;
-		margin-bottom: 0.75rem;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--space-5);
+		margin-bottom: var(--space-4);
+	}
+
+	.intro {
+		min-width: 0;
+		flex: 1 1 16rem;
+	}
+
+	.kicker {
+		margin: 0;
+		color: var(--muted);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.16em;
+	}
+
+	h1 {
+		margin: 0.35rem 0 0;
+		font-size: clamp(1.6rem, 4vw, 2.15rem);
+		font-weight: 750;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.meta,
+	.count {
+		margin: var(--space-2) 0 0;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 650;
+		letter-spacing: 0.08em;
 	}
 
 	.name {
 		appearance: none;
+		display: block;
+		width: min(14rem, 100%);
+		margin-top: var(--space-3);
 		border: 0;
 		border-bottom: 1px solid var(--line);
 		background: transparent;
 		color: inherit;
 		font: inherit;
-		font-size: 1rem;
+		font-size: 0.95rem;
 		font-weight: 600;
 		padding: 0.2rem 0;
-		min-width: 8rem;
-		max-width: 12rem;
-	}
-
-	.people,
-	.shap,
-	.err {
-		margin: 0;
-		font-size: 0.9rem;
 	}
 
 	.people {
-		appearance: none;
-		border: 0;
-		padding: 0;
-		background: transparent;
-		color: var(--muted);
-		font: inherit;
-		cursor: pointer;
+		margin-top: var(--space-4);
 	}
 
-	.names {
-		flex-basis: 100%;
+	.marks {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem 0.75rem;
-		margin: 0;
+		align-items: flex-start;
+		gap: 0.45rem;
+		margin: var(--space-2) 0 0;
 		padding: 0;
 		list-style: none;
 	}
 
-	.names li {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.4rem 0.6rem;
+	.marks li {
+		position: relative;
 	}
 
-	.who,
+	.mark,
+	.nav,
+	.copy {
+		appearance: none;
+		border: 0;
+		cursor: pointer;
+		font: inherit;
+	}
+
+	.mark {
+		display: grid;
+		place-items: center;
+		width: 2.35rem;
+		height: 2.35rem;
+		padding: 0;
+		border-radius: 50%;
+		background: var(--input);
+		color: var(--muted);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+	}
+
+	.mark.mine,
+	.mark.open {
+		background: var(--line);
+		color: var(--ink);
+	}
+
+	.who {
+		position: absolute;
+		z-index: 2;
+		top: calc(100% + 0.35rem);
+		left: 0;
+		min-width: 8rem;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius);
+		background: var(--bg);
+		box-shadow: 0 0.5rem 1.25rem rgb(0 0 0 / 0.12);
+		font-size: 0.8rem;
+	}
+
+	.who p {
+		margin: 0;
+	}
+
 	.take {
 		appearance: none;
+		margin-top: 0.3rem;
 		border: 0;
 		padding: 0;
 		background: transparent;
 		color: inherit;
 		font: inherit;
+		font-weight: 650;
 		cursor: pointer;
 	}
 
-	.take {
+	.tools {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--space-3);
+		flex: 0 1 auto;
+	}
+
+	.share {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		max-width: 100%;
+		padding: 0.35rem 0.35rem 0.35rem 0.85rem;
+		border-radius: var(--radius);
+		background: var(--bg);
+	}
+
+	.url {
+		margin: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--muted);
+		font-size: 0.8rem;
+		max-width: 12rem;
+	}
+
+	.copy {
+		flex-shrink: 0;
+		padding: 0.45rem 0.7rem;
+		border-radius: calc(var(--radius) - 0.15rem);
+		background: var(--input);
+		color: inherit;
+		font-size: 0.8rem;
 		font-weight: 650;
+	}
+
+	.pager {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.nav {
+		display: grid;
+		place-items: center;
+		width: 2.15rem;
+		height: 2.15rem;
+		border-radius: 0.55rem;
+		background: var(--bg);
+		color: var(--ink);
+		font-size: 1rem;
+		line-height: 1;
+	}
+
+	.nav:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	.window {
+		margin: 0;
+		padding: 0.45rem 0.7rem;
+		border-radius: 0.55rem;
+		background: var(--bg);
+		color: var(--muted);
+		font-size: 0.8rem;
+		font-weight: 650;
+		white-space: nowrap;
+	}
+
+	.tz {
+		display: block;
+		margin: var(--space-2) 0 0;
+	}
+
+	.tz select {
+		appearance: none;
+		max-width: 100%;
+		margin: 0;
+		border: 0;
+		border-bottom: 1px solid var(--line);
+		border-radius: 0;
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.8rem;
+		padding: 0.15rem 0;
+	}
+
+	.shap,
+	.err {
+		margin: var(--space-2) 0 0;
+		font-size: 0.9rem;
+	}
+
+	.shap {
+		font-weight: 650;
+		animation: shap-fade 1.4s ease forwards;
 	}
 
 	.peek {
@@ -442,50 +712,10 @@
 		color: var(--muted);
 	}
 
-	.copy {
-		appearance: none;
-		margin-left: auto;
-		border: 0;
-		background: transparent;
-		color: inherit;
-		font: inherit;
-		font-weight: 600;
-		cursor: pointer;
-		padding: 0.2rem 0;
-	}
-
-	.tz {
-		flex-basis: 100%;
-		margin: 0;
-	}
-
-	.tz select {
-		appearance: none;
-		max-width: 100%;
-		margin: 0;
-		border: 0;
-		border-bottom: 1px solid var(--line);
-		border-radius: 0;
-		background: transparent;
-		color: var(--muted);
-		font: inherit;
-		font-size: 0.8rem;
-		padding: 0.15rem 0;
-	}
-
-	.shap {
-		font-weight: 650;
-		animation: shap-fade 1.4s ease forwards;
-	}
-
-	.err {
-		flex-basis: 100%;
-	}
-
 	.frame {
 		overflow: auto;
-		max-height: calc(100dvh - 4.5rem);
-		background: var(--bg);
+		max-height: calc(100dvh - 8rem);
+		background: var(--bg-soft);
 	}
 
 	main {
@@ -494,18 +724,11 @@
 		padding: 0 1.25rem;
 	}
 
-	h1 {
+	main h1 {
 		margin: 0;
 		font-size: 1.75rem;
 		font-weight: 650;
 		letter-spacing: -0.02em;
-	}
-
-	.work {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
 	}
 
 	main p {
