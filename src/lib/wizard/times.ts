@@ -7,11 +7,14 @@ export const SLOT_MINUTES = 30 as const;
 export const MAX_DAYS = 60;
 
 export type CreateBody = {
+	organisation: string;
+	meeting_label: string;
 	starts_on: string;
 	ends_on: string;
 	window_start: string;
 	window_end: string;
 	slot_minutes: typeof SLOT_MINUTES;
+	include_weekends: boolean;
 	tz: string;
 };
 
@@ -51,11 +54,14 @@ export function creatorTz(): string {
 
 export function createBody(range: DayRange, windowStart: string, windowEnd: string): CreateBody {
 	return {
+		organisation: '',
+		meeting_label: '',
 		starts_on: range.start,
 		ends_on: range.end,
 		window_start: hm(windowStart),
 		window_end: hm(windowEnd),
 		slot_minutes: SLOT_MINUTES,
+		include_weekends: false,
 		tz: creatorTz()
 	};
 }
