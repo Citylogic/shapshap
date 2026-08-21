@@ -63,11 +63,14 @@ export type ApiEmpty = { ok: true; status: 204 } | ApiErr;
 
 type MeetingRow = {
 	id: string;
+	organisation: string;
+	meeting_label: string;
 	starts_on: string | Date;
 	ends_on: string | Date;
 	window_start: string;
 	window_end: string;
 	slot_minutes: number;
+	include_weekends: boolean;
 	tz: string;
 	created_at: Date | string;
 	expires_at: Date | string;
@@ -166,7 +169,7 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 			${tz},
 			${expires.toString()}
 		)
-		RETURNING id, starts_on, ends_on, window_start, window_end, slot_minutes, tz, created_at, expires_at
+		RETURNING id, organisation, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
 	`;
 	const row = rows[0];
 	if (!row) return { ok: false, status: 400 };
@@ -181,7 +184,7 @@ export async function getMeeting(id: string, ip: string): Promise<ApiResult<GetB
 
 	const sql = getSql();
 	const meetings = await sql<MeetingRow[]>`
-		SELECT id, starts_on, ends_on, window_start, window_end, slot_minutes, tz, created_at, expires_at
+		SELECT id, organisation, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
 		FROM meetings
 		WHERE id = ${id}
 	`;
