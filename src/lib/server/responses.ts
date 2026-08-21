@@ -27,6 +27,7 @@ type MeetingWindowRow = {
 	window_start: string;
 	window_end: string;
 	slot_minutes: number;
+	include_weekends: boolean;
 	tz: string;
 };
 
@@ -58,7 +59,8 @@ function windowFrom(row: MeetingWindowRow): MeetingWindow {
 		windowStart: hm(String(row.window_start)),
 		windowEnd: hm(String(row.window_end)),
 		tz: row.tz,
-		slotMinutes: row.slot_minutes as SlotMinutes
+		slotMinutes: row.slot_minutes as SlotMinutes,
+		includeWeekends: row.include_weekends
 	};
 }
 
@@ -108,7 +110,7 @@ export async function putResponse(
 	const sql = getSql();
 	return sql.begin(async (tx) => {
 		const meetings = await tx<MeetingWindowRow[]>`
-			SELECT id, starts_on, ends_on, window_start, window_end, slot_minutes, tz
+			SELECT id, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz
 			FROM meetings
 			WHERE id = ${meetingId}
 			FOR UPDATE
