@@ -81,11 +81,14 @@ async function postMeeting(page: Page, tz: string) {
 	const ymd = (d: Date) => d.toISOString().slice(0, 10);
 	const res = await page.request.post('/api/m', {
 		data: {
+			organisation: 'Citylogic',
+			meeting_label: 'Standup',
 			starts_on: ymd(start),
 			ends_on: ymd(end),
 			window_start: '08:00',
 			window_end: '20:00',
 			slot_minutes: 30,
+			include_weekends: false,
 			tz
 		}
 	});
@@ -152,14 +155,38 @@ test('second visitor sees overlap after copy-link and paint', async ({
 	await other.close();
 });
 
+test('a second open tab sees paint without reload', async ({ page, browser }, testInfo) => {
+	await createMeeting(page);
+	const url = page.url();
+
+	const other = await browser.newContext(testInfo.project.use);
+	const otherPage = await other.newPage();
+	const live = otherPage.waitForResponse(
+		(res) => /\/api\/m\/[A-Za-z0-9_-]{22}\/live$/.test(res.url()) && res.ok()
+	);
+	await otherPage.goto(url);
+	await live;
+	await expect(otherPage.locator('[data-slot="0"]')).toBeVisible();
+
+	const put = page.waitForRequest(
+		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
+	);
+	await page.locator('[data-slot="0"]').click();
+	await put;
+
+	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('1 people');
+	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('data-density', /[1-4]/);
+	await other.close();
+});
+
 test('expired meeting shows the gone page', async ({ page }) => {
 	const res = await page.request.post('/api/m', {
 		data: {
+			organisation: 'Citylogic',
+			meeting_label: 'Standup',
 			starts_on: '2020-01-06',
 			ends_on: '2020-01-10',
-			window_start: '08:00',
-			window_end: '20:00',
-			slot_minutes: 30,
+			include_weekends: false,
 			tz: 'Africa/Johannesburg'
 		}
 	});
