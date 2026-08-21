@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { isValidId, newId } from '../ids';
+import { gridSize } from '../time';
 import { endSql, getSql } from './db';
 import { COPY, createMeeting, getMeeting } from './meetings';
 import { migrate } from './migrate';
@@ -11,11 +12,14 @@ if (!DATABASE_URL) {
 }
 
 const BASE = {
+	organisation: 'Citylogic',
+	meeting_label: 'Standup',
 	starts_on: '2026-08-17',
 	ends_on: '2026-08-21',
 	window_start: '08:00',
 	window_end: '20:00',
 	slot_minutes: 30 as const,
+	include_weekends: false,
 	tz: 'Africa/Johannesburg'
 };
 
@@ -44,11 +48,17 @@ describe('POST create + GET meeting', () => {
 		expect(created.body.starts_on).toBe('2026-08-17');
 		expect(created.body.window_start).toBe('08:00');
 		expect(created.body.slot_minutes).toBe(30);
+		expect(created.body.organisation).toBe('Citylogic');
+		expect(created.body.meeting_label).toBe('Standup');
+		expect(created.body.include_weekends).toBe(false);
 
 		const got = await getMeeting(created.body.id, '192.0.2.1');
 		expect(got.ok).toBe(true);
 		if (!got.ok) return;
 		expect(got.body.meeting.id).toBe(created.body.id);
+		expect(got.body.meeting.organisation).toBe('Citylogic');
+		expect(got.body.meeting.meeting_label).toBe('Standup');
+		expect(got.body.meeting.include_weekends).toBe(false);
 		expect(got.body.responses).toEqual([]);
 
 		const participantId = newId();
@@ -118,5 +128,65 @@ describe('POST create + GET meeting', () => {
 		expect(bad).toEqual({ ok: false, status: 400 });
 		const missing = await getMeeting(newId(), '192.0.2.1');
 		expect(missing).toEqual({ ok: false, status: 404, body: { error: COPY.notFound } });
+	});
+
+	it('requires organisation and meeting_label and defaults the window', async () => {
+		const emptyLabel = await createMeeting({ ...BASE, meeting_label: '  ' }, '192.0.2.1');
+		expect(emptyLabel).toEqual({ ok: false, status: 400 });
+		const emptyOrg = await createMeeting({ ...BASE, organisation: '' }, '192.0.2.1');
+		expect(emptyOrg).toEqual({ ok: false, status: 400 });
+
+		const created = await createMeeting(
+			{
+				organisation: BASE.organisation,
+				meeting_label: BASE.meeting_label,
+				starts_on: BASE.starts_on,
+				ends_on: BASE.ends_on,
+				include_weekends: BASE.include_weekends,
+				tz: BASE.tz
+			},
+			'192.0.2.1'
+		);
+		expect(created.ok).toBe(true);
+		if (!created.ok) return;
+		expect(created.body.window_start).toBe('07:00');
+		expect(created.body.window_end).toBe('17:30');
+		expect(created.body.slot_minutes).toBe(30);
+	});
+
+	it('omits Saturday and Sunday from the grid when include_weekends is false', async () => {
+		const off = await createMeeting(
+			{ ...BASE, starts_on: '2026-08-17', ends_on: '2026-08-23', include_weekends: false },
+			'192.0.2.1'
+		);
+		const on = await createMeeting(
+			{ ...BASE, starts_on: '2026-08-17', ends_on: '2026-08-23', include_weekends: true },
+			'192.0.2.2'
+		);
+		expect(off.ok).toBe(true);
+		expect(on.ok).toBe(true);
+		if (!off.ok || !on.ok) return;
+
+		const offSize = gridSize({
+			startsOn: off.body.starts_on,
+			endsOn: off.body.ends_on,
+			windowStart: off.body.window_start,
+			windowEnd: off.body.window_end,
+			tz: off.body.tz,
+			slotMinutes: off.body.slot_minutes,
+			includeWeekends: off.body.include_weekends
+		});
+		const onSize = gridSize({
+			startsOn: on.body.starts_on,
+			endsOn: on.body.ends_on,
+			windowStart: on.body.window_start,
+			windowEnd: on.body.window_end,
+			tz: on.body.tz,
+			slotMinutes: on.body.slot_minutes,
+			includeWeekends: on.body.include_weekends
+		});
+		expect(offSize.days).toBe(5);
+		expect(onSize.days).toBe(7);
+		expect(offSize.slotCount).toBeLessThan(onSize.slotCount);
 	});
 });
