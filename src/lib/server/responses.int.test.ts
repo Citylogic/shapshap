@@ -12,11 +12,14 @@ if (!DATABASE_URL) {
 }
 
 const BASE = {
+	organisation: 'Citylogic',
+	meeting_label: 'Standup',
 	starts_on: '2026-08-17',
 	ends_on: '2026-08-21',
 	window_start: '08:00',
 	window_end: '20:00',
 	slot_minutes: 30 as const,
+	include_weekends: false,
 	tz: 'Africa/Johannesburg'
 };
 
@@ -96,7 +99,12 @@ describe('PUT / DELETE responses', () => {
 		expect(created.ok).toBe(true);
 		if (!created.ok) return;
 		// 5 days × 24 half-hours = 120 slots; 120 is the first invalid index.
-		const result = await putResponse(created.body.id, newId(), { slots: [0, 120] }, '192.0.2.1');
+		const result = await putResponse(
+			created.body.id,
+			newId(),
+			{ name: 'Ada L', slots: [0, 120] },
+			'192.0.2.1'
+		);
 		expect(result).toEqual({ ok: false, status: 400 });
 	});
 
@@ -138,20 +146,25 @@ describe('PUT / DELETE responses', () => {
 		if (!created.ok) return;
 		const participantId = newId();
 		for (let i = 0; i < 60; i++) {
-			const r = await putResponse(created.body.id, participantId, { slots: [0] }, '198.51.100.9');
+			const r = await putResponse(
+				created.body.id,
+				participantId,
+				{ name: 'Ada L', slots: [0] },
+				'198.51.100.9'
+			);
 			expect(r.ok).toBe(true);
 		}
 		const denied = await putResponse(
 			created.body.id,
 			participantId,
-			{ slots: [1] },
+			{ name: 'Ada L', slots: [1] },
 			'198.51.100.9'
 		);
 		expect(denied).toEqual({ ok: false, status: 429, body: { error: COPY.rateLimited } });
 		const other = await putResponse(
 			created.body.id,
 			participantId,
-			{ slots: [1] },
+			{ name: 'Ada L', slots: [1] },
 			'198.51.100.10'
 		);
 		expect(other.ok).toBe(true);
@@ -182,10 +195,32 @@ describe('PUT / DELETE responses', () => {
 		expect(again).toEqual({ ok: true, status: 204 });
 	});
 
-	it('rejects malformed ids before querying', async () => {
+	it('rejects a malformed id before querying', async () => {
 		const bad = await putResponse('short', newId(), { slots: [] }, '192.0.2.1');
 		expect(bad).toEqual({ ok: false, status: 400 });
-		const missing = await putResponse(newId(), newId(), { slots: [] }, '192.0.2.1');
+		const missing = await putResponse(newId(), newId(), { name: 'Ada L', slots: [] }, '192.0.2.1');
 		expect(missing).toEqual({ ok: false, status: 404, body: { error: COPY.notFound } });
+	});
+
+	it('requires first and last name and stores one display string', async () => {
+		const created = await createMeeting(BASE, '192.0.2.1');
+		expect(created.ok).toBe(true);
+		if (!created.ok) return;
+		const missing = await putResponse(
+			created.body.id,
+			newId(),
+			{ name: 'Ada', slots: [0] },
+			'192.0.2.1'
+		);
+		expect(missing).toEqual({ ok: false, status: 400 });
+		const full = await putResponse(
+			created.body.id,
+			newId(),
+			{ name: 'Ada Lovelace', slots: [0] },
+			'192.0.2.1'
+		);
+		expect(full.ok).toBe(true);
+		if (!full.ok) return;
+		expect(full.body.name).toBe('Ada Lovelace');
 	});
 });
