@@ -7,14 +7,14 @@ const WINDOW = {
 	slotMinutes: 30 as const
 };
 
-/** Fixed 5-day weekday window for `/dev/grid`. Typical product hours, no DST. */
+/** Fixed 5-day weekday window. Typical product hours, no DST. */
 export const GRID_FIXTURE: MeetingWindow = {
 	startsOn: '2026-08-17',
 	endsOn: '2026-08-21',
 	...WINDOW
 };
 
-/** 60-day cap (inclusive). `/dev/grid?days=60` — S04 DOM-size check. */
+/** 60-day cap (inclusive) for grid model size tests. */
 export const GRID_STRESS_FIXTURE: MeetingWindow = {
 	startsOn: '2026-08-17',
 	endsOn: '2026-10-15',
