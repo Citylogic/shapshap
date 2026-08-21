@@ -78,7 +78,14 @@ describe('truncateLink', () => {
 });
 
 describe('pager', () => {
-	const dates = ['2026-08-20', '2026-08-21', '2026-08-22', '2026-08-23', '2026-08-24', '2026-08-25'];
+	const dates = [
+		'2026-08-20',
+		'2026-08-21',
+		'2026-08-22',
+		'2026-08-23',
+		'2026-08-24',
+		'2026-08-25'
+	];
 
 	it('clamps inside a range longer than the viewport', () => {
 		expect(clampPageStart(0, 6)).toBe(0);
