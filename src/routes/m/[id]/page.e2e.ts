@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createMeeting, enterDisplayName, fillSetup } from '../../../../e2e/flow';
+import { createMeeting, enterDisplayName, fillSetup, takeOverAs } from '../../../../e2e/flow';
 
 test('SSR grid paints and autosaves without a Submit button', async ({ page }) => {
 	await createMeeting(page);
@@ -138,11 +138,9 @@ test('This is me takes over a name without a confirm dialog', async ({
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
 	await enterDisplayName(otherPage, 'Bea', 'Miller');
-	await otherPage.getByRole('button', { name: /people$/ }).click();
-	await otherPage.getByRole('button', { name: 'Ada L' }).click();
-	await otherPage.getByRole('button', { name: 'This is me' }).click();
+	await expect(otherPage.getByRole('button', { name: 'Ada L' })).toBeVisible();
+	await takeOverAs(otherPage, 'Ada L');
 	await expect(otherPage.getByRole('dialog')).toHaveCount(0);
-	await expect(otherPage.getByRole('button', { name: 'This is me' })).toHaveCount(0);
 	await expect(otherPage.getByPlaceholder(/^Guest /)).toHaveValue('Ada L');
 	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('aria-selected', 'true');
 	await other.close();
