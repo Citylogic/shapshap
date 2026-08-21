@@ -16,13 +16,20 @@ export { COPY };
 const MAX_DAYS = 60;
 const EXPIRY_CEILING_HOURS = 90 * 24;
 const IANA = new Set(Intl.supportedValuesOf('timeZone'));
+export const ORG_MAX = 48;
+export const LABEL_MAX = 80;
+const DEFAULT_WINDOW_START = '07:00';
+const DEFAULT_WINDOW_END = '17:30';
 
 const CreateBody = v.object({
+	organisation: v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(ORG_MAX)),
+	meeting_label: v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(LABEL_MAX)),
 	starts_on: v.pipe(v.string(), v.isoDate()),
 	ends_on: v.pipe(v.string(), v.isoDate()),
-	window_start: v.pipe(v.string(), v.isoTime()),
-	window_end: v.pipe(v.string(), v.isoTime()),
+	window_start: v.optional(v.pipe(v.string(), v.isoTime()), DEFAULT_WINDOW_START),
+	window_end: v.optional(v.pipe(v.string(), v.isoTime()), DEFAULT_WINDOW_END),
 	slot_minutes: v.optional(v.picklist([15, 30, 60]), 30),
+	include_weekends: v.boolean(),
 	tz: v.pipe(
 		v.string(),
 		v.check((tz) => IANA.has(tz))
@@ -31,11 +38,14 @@ const CreateBody = v.object({
 
 export type MeetingJson = {
 	id: string;
+	organisation: string;
+	meeting_label: string;
 	starts_on: string;
 	ends_on: string;
 	window_start: string;
 	window_end: string;
 	slot_minutes: SlotMinutes;
+	include_weekends: boolean;
 	tz: string;
 	created_at: string;
 	expires_at: string;
@@ -93,11 +103,14 @@ function ymd(value: string | Date): string {
 function toMeeting(row: MeetingRow): MeetingJson {
 	return {
 		id: row.id,
+		organisation: row.organisation,
+		meeting_label: row.meeting_label,
 		starts_on: ymd(row.starts_on),
 		ends_on: ymd(row.ends_on),
 		window_start: hm(String(row.window_start)),
 		window_end: hm(String(row.window_end)),
 		slot_minutes: row.slot_minutes as SlotMinutes,
+		include_weekends: row.include_weekends,
 		tz: row.tz,
 		created_at: isoInstant(row.created_at),
 		expires_at: isoInstant(row.expires_at)
@@ -147,7 +160,17 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 	const parsed = v.safeParse(CreateBody, raw);
 	if (!parsed.success) return { ok: false, status: 400 };
 
-	const { starts_on, ends_on, window_start, window_end, slot_minutes, tz } = parsed.output;
+	const {
+		starts_on,
+		ends_on,
+		window_start,
+		window_end,
+		slot_minutes,
+		tz,
+		organisation,
+		meeting_label,
+		include_weekends
+	} = parsed.output;
 	if (!windowOk(window_start, window_end)) return { ok: false, status: 400 };
 
 	const days = dayCount(starts_on, ends_on);
@@ -158,14 +181,20 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 	const expires = capExpires(expiresAt({ endsOn: ends_on, windowEnd: window_end, tz }));
 	const sql = getSql();
 	const rows = await sql<MeetingRow[]>`
-		INSERT INTO meetings (id, starts_on, ends_on, window_start, window_end, slot_minutes, tz, expires_at)
+		INSERT INTO meetings (
+			id, organisation, meeting_label, starts_on, ends_on, window_start, window_end,
+			slot_minutes, include_weekends, tz, expires_at
+		)
 		VALUES (
 			${id},
+			${organisation},
+			${meeting_label},
 			${starts_on},
 			${ends_on},
 			${window_start},
 			${window_end},
 			${slot_minutes},
+			${include_weekends},
 			${tz},
 			${expires.toString()}
 		)
