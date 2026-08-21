@@ -1,55 +1,55 @@
 import { expect, test } from '@playwright/test';
-import { pickDay } from '../../e2e/flow';
+import { createMeeting, fillSetup } from '../../e2e/flow';
 
 const LINK_RE = /\/m\/[A-Za-z0-9_-]{22}$/;
 
-test('home is wizard step 1', async ({ page }) => {
+test('home is the Setup form', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.getByText('shapshap', { exact: true })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Which days?' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Times →' })).toBeDisabled();
-	await expect(page.getByText('No account needed')).toBeVisible();
+	await expect(page.getByText('SHAPSHAP', { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Find a time that works' })).toBeVisible();
+	await expect(page.getByLabel('Organisation / Company')).toBeVisible();
+	await expect(page.getByLabel('Meeting label')).toBeVisible();
+	await expect(page.getByLabel('Start date')).toBeVisible();
+	await expect(page.getByLabel('End date')).toBeVisible();
+	await expect(page.getByRole('switch', { name: 'Include weekends' })).toHaveAttribute(
+		'aria-checked',
+		'false'
+	);
+	await expect(page.getByRole('button', { name: 'Generate shareable link →' })).toBeDisabled();
+	await expect(page.getByText('No account needed — not for you, not for them')).toBeVisible();
 	await expect(page.getByRole('link', { name: 'How it works' })).toBeVisible();
 	await expect(page.getByText('Welcome')).toHaveCount(0);
 	await expect(page.getByText('Get started')).toHaveCount(0);
-	await expect(page.locator('input, textarea')).toHaveCount(0);
+	await expect(page.getByLabel('From')).toHaveCount(0);
+	await expect(page.getByLabel('To')).toHaveCount(0);
 });
 
-test('cannot proceed until a day is picked', async ({ page }) => {
+test('cannot generate until organisation and meeting label are filled', async ({ page }) => {
 	await page.goto('/');
-	const times = page.getByRole('button', { name: 'Times →' });
-	await expect(times).toBeDisabled();
-	await pickDay(page);
-	await expect(times).toBeEnabled();
-	await times.click();
-	await expect(page.getByRole('heading', { name: 'What times?' })).toBeVisible();
-	await expect(page.getByLabel('From')).toHaveValue('08:00');
-	await expect(page.getByLabel('To')).toHaveValue('20:00');
-	await expect(page.getByRole('button', { name: 'Get the link →' })).toBeEnabled();
+	const go = page.getByRole('button', { name: 'Generate shareable link →' });
+	await expect(go).toBeDisabled();
+	await page.getByLabel('Organisation / Company').fill('Citylogic');
+	await expect(go).toBeDisabled();
+	await page.getByLabel('Meeting label').fill('Standup');
+	await expect(go).toBeEnabled();
 });
 
-test('days then times then a full copyable link', async ({ page }) => {
+test('generate lands on the meeting with a copyable link', async ({ page }) => {
 	await page.goto('/');
-	await pickDay(page);
-	await page.getByRole('button', { name: 'Times →' }).click();
-	await page.getByRole('button', { name: 'Get the link →' }).click();
-
-	await expect(page.getByRole('heading', { name: 'Shap.' })).toBeVisible();
-	const link = page.locator('[data-meeting-link]');
-	await expect(link).toBeVisible();
-	const href = (await link.textContent()) ?? '';
-	expect(href).toMatch(LINK_RE);
-	expect(href).not.toContain('…');
-	expect(href).not.toContain('...');
+	await fillSetup(page, { weekends: true });
+	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
+	await expect(page).toHaveURL(LINK_RE);
 
 	const copy = page.getByRole('button', { name: 'Copy link' });
+	await expect(copy).toBeVisible();
 	await copy.click();
 	await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+});
 
-	await expect(
-		page.getByText("This link is the only way back in. We can't recover it and neither can you.")
-	).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Add your times →' })).toBeVisible();
+test('createMeeting helper reaches a named grid', async ({ page }) => {
+	await createMeeting(page);
+	await expect(page.getByPlaceholder(/^Guest /)).toHaveValue('Ada Lovelace');
+	await expect(page.locator('[data-slot="0"]')).toBeVisible();
 });
 
 test('How it works opens the trust note', async ({ page }) => {
