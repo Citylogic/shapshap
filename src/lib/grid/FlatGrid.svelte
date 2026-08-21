@@ -11,6 +11,9 @@
 		density?: readonly number[];
 		slotMinutes?: number;
 		today?: string;
+		/** First visible day index; omit `pageSize` to show every column. */
+		pageStart?: number;
+		pageSize?: number;
 		onChange?: (selected: ReadonlySet<number>) => void;
 		onPeek?: (index: number | null) => void;
 	};
@@ -21,11 +24,16 @@
 		density = [],
 		slotMinutes = 30,
 		today = '',
+		pageStart = 0,
+		pageSize,
 		onChange,
 		onPeek
 	}: Props = $props();
 
-	let columns = $derived(columnsOf(model));
+	let allColumns = $derived(columnsOf(model));
+	let columns = $derived(
+		pageSize == null ? allColumns : allColumns.slice(pageStart, pageStart + pageSize)
+	);
 	let fromParent = $derived(new Set(slots));
 	let peekSticky = false;
 	/** Bumped on paint so the template rereads `live` during a drag. */
@@ -124,7 +132,7 @@
 	}
 </script>
 
-<div class="days" role="grid" aria-colcount={model.days.length}>
+<div class="days" role="grid" aria-colcount={columns.length}>
 	{#each columns as col (col.dayIndex)}
 		{@const picked = selectedCountForDay(current(), col.cells)}
 		<section class="day" role="group" aria-label="{col.header.weekday} {col.header.date}">
