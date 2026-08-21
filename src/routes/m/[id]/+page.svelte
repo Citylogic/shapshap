@@ -276,8 +276,12 @@
 			<aside class="peek">
 				<p class="when">{peek.when}</p>
 				<p class="of">{peek.freeCount} of {peek.total} free</p>
-				<p><span class="k">Free</span> {peek.free.join(', ')}</p>
-				<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
+				{#if peek.free.length}
+					<p><span class="k">Free</span> {peek.free.join(', ')}</p>
+				{/if}
+				{#if peek.notFree.length}
+					<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
+				{/if}
 			</aside>
 		{/if}
 	{:else if data.status === 'gone'}
