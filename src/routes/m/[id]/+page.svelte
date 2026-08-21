@@ -6,6 +6,7 @@
 	import Footer from '$lib/chrome/Footer.svelte';
 	import EntryModal from '$lib/meeting/EntryModal.svelte';
 	import { needsEntry } from '$lib/meeting/entry';
+	import { parseLiveMessage } from '$lib/meeting/live';
 	import {
 		PAGE_SIZE,
 		clampPageStart,
@@ -62,9 +63,10 @@
 	);
 	let parsedName = $derived(parseName(name));
 	let liveName = $derived(parsedName.ok ? parsedName.name : null);
+	let remotePeople = $state<OverlapPerson[] | null>(null);
 	let livePeople = $derived(
 		data.status === 'ok' && participantId
-			? mergeLive(data.responses, {
+			? mergeLive(remotePeople ?? data.responses, {
 					participant_id: participantId,
 					name: liveName,
 					slots: [...selected]
@@ -123,6 +125,7 @@
 		const lists = peekLists(livePeople, peekIndex);
 		return {
 			when: formatPeekWhen(wall.date, wall.time),
+			best: overlap.best.has(peekIndex),
 			freeCount: overlap.counts[peekIndex] ?? 0,
 			total: overlap.total,
 			...lists
@@ -152,6 +155,18 @@
 		if (paged || !model || !today) return;
 		paged = true;
 		pageStart = todayPageStart(dayDates, today);
+	});
+
+	$effect(() => {
+		if (!browser || data.status !== 'ok') return;
+		const snapshot = data.responses;
+		const es = new EventSource(`/api/m/${data.meeting.id}/live`);
+		remotePeople = snapshot;
+		es.onmessage = (ev) => {
+			const next = parseLiveMessage(ev.data);
+			if (next) remotePeople = next;
+		};
+		return () => es.close();
 	});
 
 	function onEntry(display: string) {
@@ -383,6 +398,7 @@
 						{model}
 						slots={[...selected]}
 						{density}
+						best={overlap?.best ?? new Set()}
 						slotMinutes={data.meeting.slot_minutes}
 						{today}
 						pageStart={windowStart}
@@ -397,7 +413,7 @@
 			</div>
 			{#if peek}
 				<aside class="peek">
-					<p class="when">{peek.when}</p>
+					<p class="when">{peek.when}{#if peek.best} · Best{/if}</p>
 					<p class="of">{peek.freeCount} of {peek.total} free</p>
 					{#if peek.free.length}
 						<p><span class="k">Free</span> {peek.free.join(', ')}</p>
