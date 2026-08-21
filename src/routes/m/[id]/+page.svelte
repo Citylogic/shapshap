@@ -4,7 +4,10 @@
 	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
 	import Footer from '$lib/chrome/Footer.svelte';
-	import Grid from '$lib/grid/Grid.svelte';
+	import EntryModal from '$lib/meeting/EntryModal.svelte';
+	import { needsEntry } from '$lib/meeting/entry';
+	import FlatGrid from '$lib/grid/FlatGrid.svelte';
+	import { todayIso } from '$lib/grid/flat';
 	import { relabelGridModel } from '$lib/grid/model';
 	import {
 		densityLevels,
@@ -32,6 +35,7 @@
 	let participantId = $state('');
 	let ephemeral = $state(true);
 	let booted = $state(false);
+	let entered = $state(false);
 	let listOpen = $state(false);
 	let picked = $state<string | null>(null);
 	let inflight = false;
@@ -69,6 +73,7 @@
 	let density = $derived(overlap ? densityLevels(overlap.counts, overlap.total) : []);
 	let people = $derived(livePeople.length);
 	let href = $derived(browser ? window.location.href : '');
+	let today = $derived(displayTz ? todayIso(displayTz) : '');
 
 	let peekIndex = $state<number | null>(null);
 	let peek = $derived.by(() => {
@@ -92,6 +97,9 @@
 
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
+	let showEntry = $derived(
+		booted && data.status === 'ok' && !entered && needsEntry(!ephemeral, name)
+	);
 
 	$effect(() => {
 		if (booted || !browser || data.status !== 'ok') return;
@@ -105,6 +113,14 @@
 		detectedTz = tz;
 		viewTz = tz;
 	});
+
+	function onEntry(display: string) {
+		name = display;
+		ephemeral = false;
+		entered = true;
+		if (browser && data.status === 'ok') writeClaim(data.meeting.id, participantId, localStorage);
+		queueMicrotask(() => document.querySelector<HTMLElement>('.frame')?.focus());
+	}
 
 	function scheduleSave() {
 		clearTimeout(saveTimer);
@@ -199,92 +215,98 @@
 
 <div class="page">
 	{#if data.status === 'ok'}
-		<header>
-			<input
-				class="name"
-				type="text"
-				maxlength={NAME_MAX}
-				{placeholder}
-				autocomplete="off"
-				spellcheck="false"
-				bind:value={name}
-				oninput={scheduleSave}
-			/>
-			<button
-				type="button"
-				class="people"
-				aria-expanded={listOpen}
-				onclick={() => (listOpen = !listOpen)}
-			>
-				{people} people
-			</button>
-			<button type="button" class="copy" onclick={copyLink}>
-				{copied ? 'Copied' : 'Copy link'}
-			</button>
-			{#if zoneOpen}
-				<label class="tz">
-					<select aria-label="Time zone" bind:value={viewTz}>
-						{#each zones as z (z)}
-							<option value={z}>{z.replaceAll('_', ' ')}</option>
-						{/each}
-					</select>
-				</label>
-			{/if}
-			{#if shap}
-				<p class="shap">Shap</p>
-			{/if}
-			{#if error}
-				<p class="err">{error}</p>
-			{/if}
-			{#if listOpen}
-				<ul class="names">
-					{#each livePeople as person, i (person.participant_id)}
-						<li>
-							<button
-								type="button"
-								class="who"
-								onclick={() =>
-									(picked = picked === person.participant_id ? null : person.participant_id)}
-							>
-								{displayName(person.name, i)}
-							</button>
-							{#if picked === person.participant_id && person.participant_id !== participantId}
-								<button type="button" class="take" onclick={() => void takeOver(person)}>
-									This is me
-								</button>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</header>
-		<div class="frame">
-			{#if model}
-				<Grid
-					{model}
-					selection={selected}
-					{density}
-					best={overlap?.best}
-					onChange={(next) => {
-						selected = next;
-						scheduleSave();
-					}}
-					onPeek={(index) => (peekIndex = index)}
+		{#if showEntry}
+			<EntryModal onContinue={onEntry} />
+		{/if}
+		<div class="work" inert={showEntry ? true : undefined}>
+			<header>
+				<input
+					class="name"
+					type="text"
+					maxlength={NAME_MAX}
+					{placeholder}
+					autocomplete="off"
+					spellcheck="false"
+					bind:value={name}
+					oninput={scheduleSave}
 				/>
+				<button
+					type="button"
+					class="people"
+					aria-expanded={listOpen}
+					onclick={() => (listOpen = !listOpen)}
+				>
+					{people} people
+				</button>
+				<button type="button" class="copy" onclick={copyLink}>
+					{copied ? 'Copied' : 'Copy link'}
+				</button>
+				{#if zoneOpen}
+					<label class="tz">
+						<select aria-label="Time zone" bind:value={viewTz}>
+							{#each zones as z (z)}
+								<option value={z}>{z.replaceAll('_', ' ')}</option>
+							{/each}
+						</select>
+					</label>
+				{/if}
+				{#if shap}
+					<p class="shap">Shap</p>
+				{/if}
+				{#if error}
+					<p class="err">{error}</p>
+				{/if}
+				{#if listOpen}
+					<ul class="names">
+						{#each livePeople as person, i (person.participant_id)}
+							<li>
+								<button
+									type="button"
+									class="who"
+									onclick={() =>
+										(picked = picked === person.participant_id ? null : person.participant_id)}
+								>
+									{displayName(person.name, i)}
+								</button>
+								{#if picked === person.participant_id && person.participant_id !== participantId}
+									<button type="button" class="take" onclick={() => void takeOver(person)}>
+										This is me
+									</button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</header>
+			<div class="frame" tabindex="-1">
+				{#if model}
+					<FlatGrid
+						{model}
+						slots={[...selected]}
+						{density}
+						slotMinutes={data.meeting.slot_minutes}
+						{today}
+						onChange={(next) => {
+							selected = next;
+							scheduleSave();
+						}}
+						onPeek={(index) => (peekIndex = index)}
+					/>
+				{/if}
+			</div>
+			{#if peek}
+				<aside class="peek">
+					<p class="when">{peek.when}</p>
+					<p class="of">{peek.freeCount} of {peek.total} free</p>
+					{#if peek.free.length}
+						<p><span class="k">Free</span> {peek.free.join(', ')}</p>
+					{/if}
+					{#if peek.notFree.length}
+						<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
+					{/if}
+				</aside>
 			{/if}
 		</div>
-		{#if peek}
-			<aside class="peek">
-				<p class="when">{peek.when}</p>
-				<p class="of">{peek.freeCount} of {peek.total} free</p>
-				{#if peek.free.length}
-					<p><span class="k">Free</span> {peek.free.join(', ')}</p>
-				{/if}
-				{#if peek.notFree.length}
-					<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
-				{/if}
-			</aside>
-		{/if}
 	{:else if data.status === 'gone'}
 		<main>
 			<h1>{COPY.goneTitle}</h1>
@@ -463,7 +485,6 @@
 	.frame {
 		overflow: auto;
 		max-height: calc(100dvh - 4.5rem);
-		border: 1px solid var(--line);
 		background: var(--bg);
 	}
 
@@ -478,6 +499,13 @@
 		font-size: 1.75rem;
 		font-weight: 650;
 		letter-spacing: -0.02em;
+	}
+
+	.work {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 
 	main p {
