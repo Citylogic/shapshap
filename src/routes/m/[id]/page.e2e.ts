@@ -227,7 +227,34 @@ test('second visitor sees overlap after copy-link and paint', async ({
 	await enterDisplayName(otherPage, 'Bea', 'Miller');
 	const cell = otherPage.locator('[data-slot="0"]');
 	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
-	await expect(otherPage.getByRole('button', { name: /people$/ })).toHaveText('2 people');
+	await expect(otherPage.getByText('2 RESPONDENTS')).toBeVisible();
+	await other.close();
+});
+
+test('second visitor sees live density after the first paints', async ({
+	page,
+	browser
+}, testInfo) => {
+	await createMeeting(page);
+	const url = page.url();
+
+	const other = await browser.newContext(testInfo.project.use);
+	const otherPage = await other.newPage();
+	await otherPage.goto(url);
+	await enterDisplayName(otherPage, 'Bea', 'Miller');
+	await expect(otherPage.getByText('1 RESPONDENT')).toBeVisible();
+	const cell = otherPage.locator('[data-slot="0"]');
+	await expect(cell).not.toHaveAttribute('data-density');
+
+	const put = page.waitForRequest(
+		(req) => req.method() === 'PUT' && /\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())
+	);
+	await page.locator('[data-slot="0"]').click();
+	await put;
+	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
+
+	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
+	await expect(otherPage.getByText('2 RESPONDENTS')).toBeVisible();
 	await other.close();
 });
 
