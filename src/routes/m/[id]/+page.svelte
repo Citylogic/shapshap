@@ -98,11 +98,7 @@
 	);
 	let meta = $derived(
 		data.status === 'ok'
-			? formatMeetingMeta(
-					data.meeting.slot_minutes,
-					data.meeting.starts_on,
-					data.meeting.ends_on
-				)
+			? formatMeetingMeta(data.meeting.slot_minutes, data.meeting.starts_on, data.meeting.ends_on)
 			: ''
 	);
 	let dayDates = $derived(model ? model.days.map((d) => d.date) : []);
@@ -404,6 +400,7 @@
 					{/if}
 				</div>
 			</header>
+			<p class="warn">{COPY.linkWarning}</p>
 			<div class="frame" tabindex="-1">
 				{#if model}
 					<FlatGrid
@@ -425,7 +422,10 @@
 			</div>
 			{#if peek}
 				<aside class="peek">
-					<p class="when">{peek.when}{#if peek.best} · Best{/if}</p>
+					<p class="when">
+						{peek.when}{#if peek.best}
+							· Best{/if}
+					</p>
 					<p class="of">{peek.freeCount} of {peek.total} free</p>
 					{#if peek.free.length}
 						<p><span class="k">Free</span> {peek.free.join(', ')}</p>
@@ -672,6 +672,12 @@
 		font-size: 0.8rem;
 		font-weight: 650;
 		white-space: nowrap;
+	}
+
+	.warn {
+		margin: 0 0 var(--space-3);
+		font-size: 1rem;
+		line-height: 1.45;
 	}
 
 	.tz {
