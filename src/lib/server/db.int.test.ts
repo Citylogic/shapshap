@@ -18,6 +18,8 @@ describe('db client', () => {
 		const rows = await sql<{ filename: string }[]>`
 			SELECT filename FROM schema_migrations ORDER BY filename
 		`;
-		expect(rows.map((r) => r.filename)).toContain('001_init.sql');
+		expect(rows.map((r) => r.filename)).toEqual(
+			expect.arrayContaining(['001_init.sql', '002_org_label_weekends.sql'])
+		);
 	});
 });
