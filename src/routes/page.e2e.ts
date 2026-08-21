@@ -61,3 +61,8 @@ test('Why opens the trust note', async ({ page }) => {
 	await expect(page.getByText('No accounts, and not much kept.')).toBeVisible();
 	await expect(page.getByText('github.com/Citylogic/shapshap')).toBeVisible();
 });
+
+test('dev grid preview is not a product route', async ({ page }) => {
+	await page.goto('/dev/grid');
+	await expect(page.getByText("That link doesn't work. Check you copied all of it.")).toBeVisible();
+});
