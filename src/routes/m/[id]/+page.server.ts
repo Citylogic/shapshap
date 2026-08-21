@@ -12,7 +12,8 @@ function windowOf(meeting: MeetingJson): MeetingWindow {
 		windowStart: meeting.window_start,
 		windowEnd: meeting.window_end,
 		tz: meeting.tz,
-		slotMinutes: meeting.slot_minutes
+		slotMinutes: meeting.slot_minutes,
+		includeWeekends: meeting.include_weekends
 	};
 }
 
