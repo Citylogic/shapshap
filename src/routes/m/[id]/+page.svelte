@@ -3,15 +3,17 @@
 	import { resolve } from '$app/paths';
 	import { restoreVisit, writeClaim } from '$lib/claim';
 	import { COPY } from '$lib/copy';
+	import AnnounceStrip from '$lib/chrome/AnnounceStrip.svelte';
 	import Footer from '$lib/chrome/Footer.svelte';
 	import EntryModal from '$lib/meeting/EntryModal.svelte';
 	import { needsEntry } from '$lib/meeting/entry';
 	import { parseLiveMessage } from '$lib/meeting/live';
 	import {
 		PAGE_SIZE,
+		availableCountLabel,
 		clampPageStart,
+		formatMeetingLabel,
 		formatMeetingMeta,
-		formatOrgLabel,
 		jumpEnd,
 		respondentCountLabel,
 		respondentMark,
@@ -21,20 +23,19 @@
 		visibleRangeLabel
 	} from '$lib/meeting/chrome';
 	import FlatGrid from '$lib/grid/FlatGrid.svelte';
-	import { todayIso } from '$lib/grid/flat';
+	import { deviceTz, todayIso } from '$lib/civil';
 	import { relabelGridModel } from '$lib/grid/model';
 	import {
 		densityLevels,
 		displayName,
-		formatPeekWhen,
+		freeIdsAt,
 		mergeLive,
-		peekLists,
 		scoreOverlap,
 		type OverlapPerson
 	} from '$lib/grid/overlap';
-	import { showZoneControl, viewerTz, wallAt, zoneIds } from '$lib/grid/zone';
+	import { showZoneControl, zoneIds } from '$lib/grid/zone';
 	import { newId } from '$lib/ids';
-	import { NAME_MAX, parseName } from '$lib/name';
+	import { parseName } from '$lib/name';
 
 	let { data } = $props();
 
@@ -51,6 +52,7 @@
 	let booted = $state(false);
 	let entered = $state(false);
 	let picked = $state<string | null>(null);
+	let showRename = $state(false);
 	let pageStart = $state(0);
 	let paged = $state(false);
 	let inflight = false;
@@ -58,9 +60,6 @@
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	let shapTimer: ReturnType<typeof setTimeout> | undefined;
 
-	let placeholder = $derived(
-		data.status === 'ok' ? `Guest ${data.responses.length + 1}` : 'Guest 1'
-	);
 	let parsedName = $derived(parseName(name));
 	let liveName = $derived(parsedName.ok ? parsedName.name : null);
 	let remotePeople = $state<OverlapPerson[] | null>(null);
@@ -91,11 +90,7 @@
 	let href = $derived(browser ? window.location.href : '');
 	let linkLabel = $derived(href ? truncateLink(href) : '');
 	let today = $derived(displayTz ? todayIso(displayTz) : '');
-	let kicker = $derived(
-		data.status === 'ok'
-			? formatOrgLabel(data.meeting.organisation, data.meeting.meeting_label)
-			: ''
-	);
+	let kicker = $derived(data.status === 'ok' ? formatMeetingLabel(data.meeting.meeting_label) : '');
 	let meta = $derived(
 		data.status === 'ok'
 			? formatMeetingMeta(data.meeting.slot_minutes, data.meeting.starts_on, data.meeting.ends_on)
@@ -108,25 +103,19 @@
 	let windowLabel = $derived(visibleRangeLabel(dayDates, windowStart));
 
 	let peekIndex = $state<number | null>(null);
-	let peek = $derived.by(() => {
-		if (data.status !== 'ok' || peekIndex == null || !overlap || !model) return null;
+	let peekLevel = $derived.by(() => {
+		if (peekIndex == null || !overlap || !model) return 0;
 		const cell = model.cells[peekIndex];
-		if (!cell?.exists) return null;
-		const ms = model.instants[peekIndex];
-		const day = model.days[cell.dayIndex];
-		const time = model.times[cell.slotInDay];
-		const wall =
-			ms != null ? wallAt(ms, displayTz) : day && time ? { date: day.date, time: time.time } : null;
-		if (!wall) return null;
-		const lists = peekLists(livePeople, peekIndex);
-		return {
-			when: formatPeekWhen(wall.date, wall.time),
-			best: overlap.best.has(peekIndex),
-			freeCount: overlap.counts[peekIndex] ?? 0,
-			total: overlap.total,
-			...lists
-		};
+		if (!cell?.exists) return 0;
+		if ((overlap.counts[peekIndex] ?? 0) <= 0) return 0;
+		return density[peekIndex] ?? 0;
 	});
+	let peekFree = $derived(
+		peekLevel > 0 && peekIndex != null ? freeIdsAt(livePeople, peekIndex) : null
+	);
+	let peopleLabel = $derived(
+		peekFree != null ? availableCountLabel(peekFree.size, people) : respondentCountLabel(people)
+	);
 
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -143,7 +132,7 @@
 		selected = new Set(restored.slots);
 		ephemeral = restored.ephemeral;
 		entered = !needsEntry(!restored.ephemeral, restored.name);
-		const tz = viewerTz();
+		const tz = deviceTz();
 		detectedTz = tz;
 		viewTz = tz;
 	});
@@ -173,6 +162,12 @@
 		if (browser && data.status === 'ok') writeClaim(data.meeting.id, participantId, localStorage);
 		scheduleSave();
 		queueMicrotask(() => document.querySelector<HTMLElement>('.frame')?.focus());
+	}
+
+	function onRename(display: string) {
+		name = display;
+		showRename = false;
+		scheduleSave();
 	}
 
 	function scheduleSave() {
@@ -267,6 +262,11 @@
 	}
 
 	function togglePerson(id: string) {
+		if (id === participantId) {
+			picked = null;
+			showRename = true;
+			return;
+		}
 		picked = picked === id ? null : id;
 	}
 
@@ -282,47 +282,70 @@
 	}
 </script>
 
-<svelte:window onclick={closePeople} onkeydown={(e) => e.key === 'Escape' && (picked = null)} />
+<svelte:window
+	onclick={closePeople}
+	onkeydown={(e) => {
+		if (e.key !== 'Escape') return;
+		picked = null;
+		if (showRename) showRename = false;
+	}}
+/>
 
 <div class="page">
 	{#if data.status === 'ok'}
 		{#if showEntry}
 			<EntryModal onContinue={onEntry} />
+		{:else if showRename}
+			<EntryModal
+				mode="rename"
+				initialName={name}
+				onContinue={onRename}
+				onDismiss={() => (showRename = false)}
+			/>
 		{/if}
+		<AnnounceStrip />
 		<div class="work" inert={showEntry ? true : undefined}>
 			<header>
-				<div class="intro">
-					<p class="kicker">{kicker}</p>
-					<h1>When are you free?</h1>
-					<p class="meta">{meta}</p>
-					<input
-						class="name"
-						type="text"
-						maxlength={NAME_MAX}
-						{placeholder}
-						autocomplete="off"
-						spellcheck="false"
-						aria-label="Your name"
-						bind:value={name}
-						oninput={scheduleSave}
-					/>
-					{#if shap}
-						<p class="shap">Shap</p>
-					{/if}
-					{#if error}
-						<p class="err">{error}</p>
-					{/if}
+				<div class="top">
+					<div class="intro">
+						<h1>When are you free?</h1>
+						<p class="kicker">{kicker}</p>
+						<p class="meta">{meta}</p>
+						{#if shap}
+							<p class="shap">Shap</p>
+						{/if}
+						{#if error}
+							<p class="err">{error}</p>
+						{/if}
+					</div>
+					<div class="share">
+						<p class="url" title={href}>{linkLabel}</p>
+						<button type="button" class="copy" onclick={copyLink}>
+							{copied ? 'Copied' : 'Copy link'}
+						</button>
+					</div>
+				</div>
+				<div class="strip">
 					<div class="people">
-						<p class="count">{respondentCountLabel(people)}</p>
+						<p class="count">{peopleLabel}</p>
 						<ul class="marks">
 							{#each livePeople as person, i (person.participant_id)}
+								{@const lit = peekFree?.has(person.participant_id) ?? false}
+								{@const dim = peekFree != null && !lit}
 								<li>
 									<button
 										type="button"
 										class="mark"
 										class:mine={person.participant_id === participantId}
 										class:open={picked === person.participant_id}
+										class:lit
+										class:dim
+										class:d1={lit && peekLevel === 1}
+										class:d2={lit && peekLevel === 2}
+										class:d3={lit && peekLevel === 3}
+										class:d4={lit && peekLevel === 4}
 										aria-expanded={picked === person.participant_id}
+										aria-haspopup={person.participant_id === participantId ? 'dialog' : 'true'}
 										aria-label={displayName(person.name, i)}
 										onclick={() => togglePerson(person.participant_id)}
 									>
@@ -342,65 +365,60 @@
 							{/each}
 						</ul>
 					</div>
-				</div>
-				<div class="tools">
-					<div class="share">
-						<p class="url" title={href}>{linkLabel}</p>
-						<button type="button" class="copy" onclick={copyLink}>
-							{copied ? 'Copied' : 'Copy link'}
-						</button>
+					<div class="tools">
+						<div class="pager" role="group" aria-label="Days">
+							<div class="moves">
+								<button
+									type="button"
+									class="nav"
+									aria-label="First days"
+									disabled={!canPage || windowStart === 0}
+									onclick={() => goPage(0)}
+								>
+									«
+								</button>
+								<button
+									type="button"
+									class="nav"
+									aria-label="Previous days"
+									disabled={!canPage || windowStart === 0}
+									onclick={() => goPage(shiftPage(windowStart, -1, dayCount))}
+								>
+									‹
+								</button>
+								<button
+									type="button"
+									class="nav"
+									aria-label="Next days"
+									disabled={!canPage || windowStart >= jumpEnd(dayCount)}
+									onclick={() => goPage(shiftPage(windowStart, 1, dayCount))}
+								>
+									›
+								</button>
+								<button
+									type="button"
+									class="nav"
+									aria-label="Last days"
+									disabled={!canPage || windowStart >= jumpEnd(dayCount)}
+									onclick={() => goPage(jumpEnd(dayCount))}
+								>
+									»
+								</button>
+							</div>
+							<p class="window">{windowLabel}</p>
+						</div>
+						{#if zoneOpen}
+							<label class="tz">
+								<select aria-label="Time zone" bind:value={viewTz}>
+									{#each zones as z (z)}
+										<option value={z}>{z.replaceAll('_', ' ')}</option>
+									{/each}
+								</select>
+							</label>
+						{/if}
 					</div>
-					<div class="pager" role="group" aria-label="Days">
-						<button
-							type="button"
-							class="nav"
-							aria-label="First days"
-							disabled={!canPage || windowStart === 0}
-							onclick={() => goPage(0)}
-						>
-							«
-						</button>
-						<button
-							type="button"
-							class="nav"
-							aria-label="Previous days"
-							disabled={!canPage || windowStart === 0}
-							onclick={() => goPage(shiftPage(windowStart, -1, dayCount))}
-						>
-							‹
-						</button>
-						<p class="window">{windowLabel}</p>
-						<button
-							type="button"
-							class="nav"
-							aria-label="Next days"
-							disabled={!canPage || windowStart >= jumpEnd(dayCount)}
-							onclick={() => goPage(shiftPage(windowStart, 1, dayCount))}
-						>
-							›
-						</button>
-						<button
-							type="button"
-							class="nav"
-							aria-label="Last days"
-							disabled={!canPage || windowStart >= jumpEnd(dayCount)}
-							onclick={() => goPage(jumpEnd(dayCount))}
-						>
-							»
-						</button>
-					</div>
-					{#if zoneOpen}
-						<label class="tz">
-							<select aria-label="Time zone" bind:value={viewTz}>
-								{#each zones as z (z)}
-									<option value={z}>{z.replaceAll('_', ' ')}</option>
-								{/each}
-							</select>
-						</label>
-					{/if}
 				</div>
 			</header>
-			<p class="warn">{COPY.linkWarning}</p>
 			<div class="frame" tabindex="-1">
 				{#if model}
 					<FlatGrid
@@ -420,21 +438,6 @@
 					/>
 				{/if}
 			</div>
-			{#if peek}
-				<aside class="peek">
-					<p class="when">
-						{peek.when}{#if peek.best}
-							· Best{/if}
-					</p>
-					<p class="of">{peek.freeCount} of {peek.total} free</p>
-					{#if peek.free.length}
-						<p><span class="k">Free</span> {peek.free.join(', ')}</p>
-					{/if}
-					{#if peek.notFree.length}
-						<p><span class="k">Not free</span> {peek.notFree.join(', ')}</p>
-					{/if}
-				</aside>
-			{/if}
 		</div>
 	{:else if data.status === 'gone'}
 		<main>
@@ -459,26 +462,36 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--bg-soft);
+		background: var(--bg);
 		color: var(--ink);
 		font-family: var(--font-sans);
 	}
 
 	.work {
+		box-sizing: border-box;
 		flex: 1;
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
+		width: 100%;
+		max-width: 1440px;
+		margin: 0 auto;
 		padding: var(--space-5) var(--space-5) 0;
 	}
 
 	header {
 		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		margin-bottom: var(--space-4);
+	}
+
+	.top {
+		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: var(--space-5);
-		margin-bottom: var(--space-4);
 	}
 
 	.intro {
@@ -486,24 +499,35 @@
 		flex: 1 1 16rem;
 	}
 
-	.kicker {
+	.strip {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-4);
+	}
+
+	h1 {
 		margin: 0;
+		font-size: clamp(1.6rem, 4vw, 2.25rem);
+		font-weight: 750;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+		color: var(--accent);
+		letter-spacing: 0.03em;
+		font-family: var(--font-condensed);
+		text-transform: uppercase;
+	}
+
+	.kicker {
+		margin: 0.35rem 0 0;
 		color: var(--muted);
 		font-size: 0.68rem;
 		font-weight: 700;
 		letter-spacing: 0.16em;
 	}
 
-	h1 {
-		margin: 0.35rem 0 0;
-		font-size: clamp(1.6rem, 4vw, 2.15rem);
-		font-weight: 750;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
-	}
-
-	.meta,
-	.count {
+	.meta {
 		margin: var(--space-2) 0 0;
 		color: var(--muted);
 		font-size: 0.72rem;
@@ -511,37 +535,40 @@
 		letter-spacing: 0.08em;
 	}
 
-	.name {
-		appearance: none;
-		display: block;
-		width: min(14rem, 100%);
-		margin-top: var(--space-3);
-		border: 0;
-		border-bottom: 1px solid var(--line);
-		background: transparent;
-		color: inherit;
-		font: inherit;
-		font-size: 0.95rem;
-		font-weight: 600;
-		padding: 0.2rem 0;
+	.count {
+		margin: 0;
+		flex-shrink: 0;
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 650;
+		letter-spacing: 0.08em;
+		white-space: nowrap;
 	}
 
 	.people {
-		margin-top: var(--space-4);
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		min-width: 0;
+		flex: 1 1 12rem;
 	}
 
 	.marks {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-start;
+		flex-wrap: nowrap;
+		align-items: center;
 		gap: 0.45rem;
-		margin: var(--space-2) 0 0;
+		min-width: 0;
+		margin: 0;
 		padding: 0;
 		list-style: none;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.marks li {
 		position: relative;
+		flex-shrink: 0;
 	}
 
 	.mark,
@@ -571,6 +598,34 @@
 	.mark.open {
 		background: var(--line);
 		color: var(--ink);
+	}
+
+	.mark.mine {
+		border-radius: 5px;
+	}
+
+	.mark.lit.d1 {
+		background: var(--density-1);
+		color: var(--ink);
+	}
+
+	.mark.lit.d2 {
+		background: var(--density-2);
+		color: var(--ink);
+	}
+
+	.mark.lit.d3 {
+		background: var(--density-3);
+		color: var(--ink);
+	}
+
+	.mark.lit.d4 {
+		background: var(--density-4);
+		color: var(--accent-ink);
+	}
+
+	.mark.dim {
+		opacity: 0.15;
 	}
 
 	.who {
@@ -604,8 +659,9 @@
 
 	.tools {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
 		gap: var(--space-3);
 		flex: 0 1 auto;
 	}
@@ -615,6 +671,7 @@
 		align-items: center;
 		gap: var(--space-2);
 		max-width: 100%;
+		margin-left: auto;
 		padding: 0.35rem 0.35rem 0.35rem 0.85rem;
 		border-radius: var(--radius);
 		background: var(--bg);
@@ -643,19 +700,32 @@
 	.pager {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3);
+	}
+
+	.moves {
+		display: flex;
+		align-items: center;
+		gap: 0.1rem;
+		padding: 0.2rem;
+		border-radius: var(--radius);
+		background: var(--input);
 	}
 
 	.nav {
 		display: grid;
 		place-items: center;
-		width: 2.15rem;
-		height: 2.15rem;
-		border-radius: 0.55rem;
-		background: var(--bg);
+		width: 2rem;
+		height: 2rem;
+		border-radius: calc(var(--radius) - 0.2rem);
+		background: transparent;
 		color: var(--ink);
 		font-size: 1rem;
 		line-height: 1;
+	}
+
+	.nav:not(:disabled):hover {
+		background: var(--bg);
 	}
 
 	.nav:disabled {
@@ -665,19 +735,10 @@
 
 	.window {
 		margin: 0;
-		padding: 0.45rem 0.7rem;
-		border-radius: 0.55rem;
-		background: var(--bg);
 		color: var(--muted);
 		font-size: 0.8rem;
 		font-weight: 650;
 		white-space: nowrap;
-	}
-
-	.warn {
-		margin: 0 0 var(--space-3);
-		font-size: 1rem;
-		line-height: 1.45;
 	}
 
 	.tz {
@@ -709,46 +770,11 @@
 		animation: shap-fade 1.4s ease forwards;
 	}
 
-	.peek {
-		display: grid;
-		grid-template-columns: 4.5rem 1fr;
-		column-gap: 0.75rem;
-		row-gap: 0.15rem;
-		margin-top: 0.75rem;
-		font-size: 0.85rem;
-		line-height: 1.35;
-	}
-
-	.when,
-	.of {
-		grid-column: 1 / -1;
-		margin: 0;
-	}
-
-	.when {
-		font-weight: 650;
-	}
-
-	.of {
-		color: var(--muted);
-		margin-bottom: 0.25rem;
-	}
-
-	.peek p {
-		display: grid;
-		grid-template-columns: subgrid;
-		grid-column: 1 / -1;
-		margin: 0;
-	}
-
-	.k {
-		color: var(--muted);
-	}
-
 	.frame {
+		flex: 1;
+		min-height: 0;
 		overflow: auto;
-		max-height: calc(100dvh - 8rem);
-		background: var(--bg-soft);
+		background: var(--bg);
 	}
 
 	main {

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	PAGE_SIZE,
+	availableCountLabel,
 	clampPageStart,
-	formatCompactDate,
-	formatDateRange,
+	formatMeetingLabel,
 	formatMeetingMeta,
-	formatOrgLabel,
 	jumpEnd,
 	respondentCountLabel,
 	respondentMark,
@@ -15,25 +14,9 @@ import {
 	visibleRangeLabel
 } from './chrome';
 
-describe('formatOrgLabel', () => {
-	it('uppercases org and label with a colon', () => {
-		expect(formatOrgLabel('Buildmate', 'Q4 planning sync')).toBe('BUILDMATE: Q4 PLANNING SYNC');
-	});
-});
-
-describe('formatDateRange', () => {
-	it('collapses a single day', () => {
-		expect(formatCompactDate('2026-08-20')).toBe('20 AUG');
-		expect(formatDateRange('2026-08-20', '2026-08-20')).toBe('20 AUG');
-	});
-
-	it('keeps the month once when the span stays in it', () => {
-		expect(formatDateRange('2026-08-20', '2026-08-28')).toBe('20–28 AUG');
-		expect(formatDateRange('2026-08-20', '2026-08-24', 'title')).toBe('20–24 Aug');
-	});
-
-	it('repeats the month when the span crosses it', () => {
-		expect(formatDateRange('2026-08-28', '2026-09-03')).toBe('28 AUG–3 SEP');
+describe('formatMeetingLabel', () => {
+	it('uppercases the meeting label', () => {
+		expect(formatMeetingLabel('Q4 planning sync')).toBe('Q4 PLANNING SYNC');
 	});
 });
 
@@ -62,6 +45,14 @@ describe('respondentCountLabel', () => {
 		expect(respondentCountLabel(0)).toBe('0 RESPONDENTS');
 		expect(respondentCountLabel(1)).toBe('1 RESPONDENT');
 		expect(respondentCountLabel(10)).toBe('10 RESPONDENTS');
+	});
+});
+
+describe('availableCountLabel', () => {
+	it('shows free of total', () => {
+		expect(availableCountLabel(0, 4)).toBe('0 OF 4 ARE FREE');
+		expect(availableCountLabel(1, 1)).toBe('1 OF 1 ARE FREE');
+		expect(availableCountLabel(3, 4)).toBe('3 OF 4 ARE FREE');
 	});
 });
 

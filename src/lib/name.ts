@@ -23,6 +23,14 @@ export function looksLikeContact(name: string): boolean {
 	return digits.length >= 7 && PHONE_CHARS.test(name.trim());
 }
 
+/** First word is the given name; everything after is the family name. */
+export function splitDisplayName(name: string): { first: string; last: string } {
+	const parts = name.trim().split(/\s+/).filter(Boolean);
+	const first = parts[0] ?? '';
+	const last = parts.slice(1).join(' ');
+	return { first, last };
+}
+
 /** Two-letter initials from the first and last words of a display name. */
 export function initials(name: string): string {
 	const parts = name.trim().split(/\s+/).filter(Boolean);

@@ -16,13 +16,11 @@ export { COPY };
 const MAX_DAYS = 60;
 const EXPIRY_CEILING_HOURS = 90 * 24;
 const IANA = new Set(Intl.supportedValuesOf('timeZone'));
-export const ORG_MAX = 48;
 export const LABEL_MAX = 80;
 const DEFAULT_WINDOW_START = '07:00';
 const DEFAULT_WINDOW_END = '17:30';
 
 const CreateBody = v.object({
-	organisation: v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(ORG_MAX)),
 	meeting_label: v.pipe(v.string(), v.trim(), v.nonEmpty(), v.maxLength(LABEL_MAX)),
 	starts_on: v.pipe(v.string(), v.isoDate()),
 	ends_on: v.pipe(v.string(), v.isoDate()),
@@ -38,7 +36,6 @@ const CreateBody = v.object({
 
 export type MeetingJson = {
 	id: string;
-	organisation: string;
 	meeting_label: string;
 	starts_on: string;
 	ends_on: string;
@@ -73,7 +70,6 @@ export type ApiEmpty = { ok: true; status: 204 } | ApiErr;
 
 type MeetingRow = {
 	id: string;
-	organisation: string;
 	meeting_label: string;
 	starts_on: string | Date;
 	ends_on: string | Date;
@@ -103,7 +99,6 @@ function ymd(value: string | Date): string {
 function toMeeting(row: MeetingRow): MeetingJson {
 	return {
 		id: row.id,
-		organisation: row.organisation,
 		meeting_label: row.meeting_label,
 		starts_on: ymd(row.starts_on),
 		ends_on: ymd(row.ends_on),
@@ -167,7 +162,6 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 		window_end,
 		slot_minutes,
 		tz,
-		organisation,
 		meeting_label,
 		include_weekends
 	} = parsed.output;
@@ -182,12 +176,11 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 	const sql = getSql();
 	const rows = await sql<MeetingRow[]>`
 		INSERT INTO meetings (
-			id, organisation, meeting_label, starts_on, ends_on, window_start, window_end,
+			id, meeting_label, starts_on, ends_on, window_start, window_end,
 			slot_minutes, include_weekends, tz, expires_at
 		)
 		VALUES (
 			${id},
-			${organisation},
 			${meeting_label},
 			${starts_on},
 			${ends_on},
@@ -198,7 +191,7 @@ export async function createMeeting(raw: unknown, ip: string): Promise<ApiResult
 			${tz},
 			${expires.toString()}
 		)
-		RETURNING id, organisation, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
+		RETURNING id, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
 	`;
 	const row = rows[0];
 	if (!row) return { ok: false, status: 400 };
@@ -213,7 +206,7 @@ export async function getMeeting(id: string, ip: string): Promise<ApiResult<GetB
 
 	const sql = getSql();
 	const meetings = await sql<MeetingRow[]>`
-		SELECT id, organisation, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
+		SELECT id, meeting_label, starts_on, ends_on, window_start, window_end, slot_minutes, include_weekends, tz, created_at, expires_at
 		FROM meetings
 		WHERE id = ${id}
 	`;

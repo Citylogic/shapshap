@@ -1,23 +1,7 @@
 /**
- * Per-slot overlap scoring and peek copy (PRD §5.3, §15.4).
- * Ties all carry Best; nobody unanswered is listed as "Not free".
+ * Per-slot overlap scoring and hover highlight helpers (PRD §5.3).
+ * Ties all carry Best.
  */
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-const MONTHS = [
-	'Jan',
-	'Feb',
-	'Mar',
-	'Apr',
-	'May',
-	'Jun',
-	'Jul',
-	'Aug',
-	'Sep',
-	'Oct',
-	'Nov',
-	'Dec'
-] as const;
 
 export type OverlapPerson = {
 	participant_id: string;
@@ -30,11 +14,6 @@ export type Overlap = {
 	max: number;
 	best: Set<number>;
 	total: number;
-};
-
-export type PeekLists = {
-	free: string[];
-	notFree: string[];
 };
 
 /** Guest N from answer order when the optional name is empty. */
@@ -84,20 +63,11 @@ export function densityLevels(counts: readonly number[], total: number): number[
 	return counts.map((count) => densityLevel(count, total));
 }
 
-export function peekLists(responses: readonly OverlapPerson[], index: number): PeekLists {
-	const free: string[] = [];
-	const notFree: string[] = [];
-	for (let i = 0; i < responses.length; i++) {
-		const person = responses[i]!;
-		const label = displayName(person.name, i);
-		if (person.slots.includes(index)) free.push(label);
-		else notFree.push(label);
+/** Participant ids free at `index`. Empty when nobody opted in. */
+export function freeIdsAt(responses: readonly OverlapPerson[], index: number): Set<string> {
+	const free = new Set<string>();
+	for (const person of responses) {
+		if (person.slots.includes(index)) free.add(person.participant_id);
 	}
-	return { free, notFree };
-}
-
-/** `Thu 21 Aug, 14:00` — civil date + wall time, no Date-object math. */
-export function formatPeekWhen(date: string, time: string): string {
-	const d = Temporal.PlainDate.from(date);
-	return `${WEEKDAYS[d.dayOfWeek - 1]} ${d.day} ${MONTHS[d.month - 1]}, ${time}`;
+	return free;
 }

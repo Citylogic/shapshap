@@ -1,20 +1,26 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { COPY } from '$lib/copy';
-	import { NAME_MAX, parseName } from '$lib/name';
+	import { NAME_MAX, parseName, splitDisplayName } from '$lib/name';
 
 	type Props = {
+		mode?: 'entry' | 'rename';
+		initialName?: string;
 		onContinue: (name: string) => void;
+		onDismiss?: () => void;
 	};
 
-	let { onContinue }: Props = $props();
+	let { mode = 'entry', initialName = '', onContinue, onDismiss }: Props = $props();
 
+	const seed = untrack(() => splitDisplayName(initialName));
 	let dialog = $state<HTMLDialogElement | undefined>();
-	let first = $state('');
-	let last = $state('');
+	let first = $state(seed.first);
+	let last = $state(seed.last);
 	let err = $state<string | null>(null);
 
 	let parsed = $derived(parseName(`${first} ${last}`));
 	let canGo = $derived(first.trim() !== '' && last.trim() !== '' && parsed.ok);
+	let editing = $derived(mode === 'rename');
 
 	$effect(() => {
 		if (!dialog) return;
@@ -30,19 +36,35 @@
 		err = null;
 		onContinue(parsed.name);
 	}
+
+	function onCancel(e: { preventDefault(): void }) {
+		if (editing) {
+			onDismiss?.();
+			return;
+		}
+		e.preventDefault();
+	}
+
+	function onBackdrop(e: MouseEvent) {
+		if (!editing || e.target !== dialog) return;
+		onDismiss?.();
+	}
 </script>
 
 <dialog
 	bind:this={dialog}
 	aria-labelledby="entry-title"
-	aria-describedby="entry-body"
-	oncancel={(e) => e.preventDefault()}
+	aria-describedby={editing ? undefined : 'entry-body'}
+	oncancel={onCancel}
+	onclick={onBackdrop}
 >
 	<form onsubmit={submit}>
-		<h2 id="entry-title">When are you free?</h2>
-		<p id="entry-body">
-			Paint the times you can do. Anyone with this link can see and change answers.
-		</p>
+		<h2 id="entry-title">{editing ? 'Your name' : 'When are you free?'}</h2>
+		{#if !editing}
+			<p id="entry-body">
+				Paint the times you can do. Anyone with this link can see and change answers.
+			</p>
+		{/if}
 		<label>
 			First name
 			<input
@@ -66,7 +88,7 @@
 		{#if err}
 			<p class="err">{err}</p>
 		{/if}
-		<button type="submit" class="go" disabled={!canGo}>Continue →</button>
+		<button type="submit" class="go" disabled={!canGo}>{editing ? 'Save →' : 'Continue →'}</button>
 	</form>
 </dialog>
 

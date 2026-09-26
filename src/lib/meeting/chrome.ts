@@ -1,76 +1,15 @@
 /**
- * Meeting-page chrome: org:label, date meta, truncated link, respondent
+ * Meeting-page chrome: label, date meta, truncated link, respondent
  * marks, and the day pager window. Unnamed people use G1, G2, … (not `?`).
  */
 
+import { formatDateRange } from '$lib/civil';
 import { initials } from '$lib/name';
-
-const MONTHS_UPPER = [
-	'JAN',
-	'FEB',
-	'MAR',
-	'APR',
-	'MAY',
-	'JUN',
-	'JUL',
-	'AUG',
-	'SEP',
-	'OCT',
-	'NOV',
-	'DEC'
-] as const;
-
-const MONTHS_TITLE = [
-	'Jan',
-	'Feb',
-	'Mar',
-	'Apr',
-	'May',
-	'Jun',
-	'Jul',
-	'Aug',
-	'Sep',
-	'Oct',
-	'Nov',
-	'Dec'
-] as const;
 
 export const PAGE_SIZE = 5;
 
-export type MonthStyle = 'upper' | 'title';
-
-function months(style: MonthStyle) {
-	return style === 'upper' ? MONTHS_UPPER : MONTHS_TITLE;
-}
-
-function plainDate(iso: string): Temporal.PlainDate {
-	return Temporal.PlainDate.from(iso);
-}
-
-export function formatOrgLabel(organisation: string, meetingLabel: string): string {
-	return `${organisation}: ${meetingLabel}`.toUpperCase();
-}
-
-export function formatCompactDate(iso: string, style: MonthStyle = 'upper'): string {
-	const d = plainDate(iso);
-	return `${d.day} ${months(style)[d.month - 1]!}`;
-}
-
-/** `20–28 AUG` same month; `28 AUG–3 SEP` when the month turns. */
-export function formatDateRange(
-	startsOn: string,
-	endsOn: string,
-	style: MonthStyle = 'upper'
-): string {
-	const start = plainDate(startsOn);
-	const end = plainDate(endsOn);
-	if (Temporal.PlainDate.compare(start, end) === 0) {
-		return formatCompactDate(startsOn, style);
-	}
-	if (start.month === end.month && start.year === end.year) {
-		return `${start.day}–${end.day} ${months(style)[start.month - 1]!}`;
-	}
-	return `${formatCompactDate(startsOn, style)}–${formatCompactDate(endsOn, style)}`;
+export function formatMeetingLabel(meetingLabel: string): string {
+	return meetingLabel.toUpperCase();
 }
 
 /** `30 MIN · 20–28 AUG` — slot length plus the meeting’s civil date span. */
@@ -80,6 +19,10 @@ export function formatMeetingMeta(slotMinutes: number, startsOn: string, endsOn:
 
 export function respondentCountLabel(n: number): string {
 	return n === 1 ? '1 RESPONDENT' : `${n} RESPONDENTS`;
+}
+
+export function availableCountLabel(free: number, total: number): string {
+	return `${free} OF ${total} ARE FREE`;
 }
 
 /**

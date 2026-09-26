@@ -1,9 +1,28 @@
-/* Design tokens from docs/design/ mockups (U01). Density scale is a placeholder for U09. */
+/* Design tokens from docs/design/ mockups (U01). Density scale from the flat-grid heatmap. */
+
+@font-face {
+	font-family: 'Barlow Condensed';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('./lib/assets/fonts/barlow-condensed/barlow-condensed-400-latin.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: 'Barlow Condensed';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('./lib/assets/fonts/barlow-condensed/barlow-condensed-600-latin.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
 	--bg: #ffffff;
 	--bg-soft: #f3f3f3;
-	--bg-footer: #f3f5f4;
 	--input: #f0f2f1;
 	--ink: #1a1c1b;
 	--muted: #6b6f6e;
@@ -11,12 +30,12 @@
 	--line: #d2d4d4;
 	--accent: #11bb62;
 	--accent-ink: #ffffff;
-	--self: #08863d;
+	--self: #137a3d;
 	--density-0: #f0f2f1;
-	--density-1: #d9f4e5;
-	--density-2: #bfe7cf;
-	--density-3: #67df9c;
-	--density-4: #11bb62;
+	--density-1: #acedc7;
+	--density-2: #4ad686;
+	--density-3: #1db25b;
+	--density-4: #137a3d;
 	--radius: 0.75rem;
 	--radius-pill: 999px;
 	--space-1: 0.25rem;
@@ -29,6 +48,7 @@
 	--space-8: 3rem;
 	--focus: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, white);
 	--font-sans: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--font-condensed: 'Barlow Condensed', var(--font-sans);
 }
 
 html,

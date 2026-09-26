@@ -59,14 +59,16 @@ describe('expiry deletion', () => {
 		expect(responseRows[0]?.responses).toBe(0);
 	});
 
-	it('schema has org, label, weekends, and still no email', async () => {
+	it('schema has label and weekends, and still no email or organisation', async () => {
 		const initSql = readFileSync(resolve('db/migrations/001_init.sql'), 'utf8');
 		const orgSql = readFileSync(resolve('db/migrations/002_org_label_weekends.sql'), 'utf8');
+		const dropSql = readFileSync(resolve('db/migrations/003_drop_organisation.sql'), 'utf8');
 		expect(initSql).not.toMatch(/\bemail\b/i);
 		expect(orgSql).not.toMatch(/\bemail\b/i);
-		expect(orgSql).toMatch(/\borganisation\b/);
+		expect(dropSql).not.toMatch(/\bemail\b/i);
 		expect(orgSql).toMatch(/\bmeeting_label\b/);
 		expect(orgSql).toMatch(/\binclude_weekends\b/);
+		expect(dropSql).toMatch(/DROP COLUMN organisation/);
 
 		const cols = await sql<{ column_name: string }[]>`
 			SELECT column_name
@@ -77,7 +79,7 @@ describe('expiry deletion', () => {
 		const names = cols.map((c) => c.column_name);
 		expect(names).not.toContain('title');
 		expect(names).not.toContain('email');
-		expect(names).toContain('organisation');
+		expect(names).not.toContain('organisation');
 		expect(names).toContain('meeting_label');
 		expect(names).toContain('include_weekends');
 		expect(names).toContain('expires_at');

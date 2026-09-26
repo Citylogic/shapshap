@@ -1,13 +1,12 @@
+import { deviceTz } from '$lib/civil';
 import { COPY } from '$lib/copy';
 
 export const MAX_DAYS = 60;
-export const ORG_MAX = 48;
 export const LABEL_MAX = 80;
 
 export type DayRange = { start: string; end: string };
 
 export type CreateBody = {
-	organisation: string;
 	meeting_label: string;
 	starts_on: string;
 	ends_on: string;
@@ -30,27 +29,17 @@ export function defaultRange(today = Temporal.Now.plainDateISO()): DayRange {
 	return { start: today.toString(), end: today.add({ days: 7 }).toString() };
 }
 
-export function creatorTz(): string {
-	try {
-		return Temporal.Now.timeZoneId();
-	} catch {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone;
-	}
-}
-
 export function createBody(
-	organisation: string,
 	meetingLabel: string,
 	range: DayRange,
 	includeWeekends: boolean
 ): CreateBody {
 	return {
-		organisation: organisation.trim(),
 		meeting_label: meetingLabel.trim(),
 		starts_on: range.start,
 		ends_on: range.end,
 		include_weekends: includeWeekends,
-		tz: creatorTz()
+		tz: deviceTz()
 	};
 }
 
@@ -60,12 +49,8 @@ export function rangeError(range: DayRange): string | null {
 	return null;
 }
 
-export function formReady(
-	organisation: string,
-	meetingLabel: string,
-	range: DayRange | null
-): boolean {
-	if (!organisation.trim() || !meetingLabel.trim() || !range) return false;
+export function formReady(meetingLabel: string, range: DayRange | null): boolean {
+	if (!meetingLabel.trim() || !range) return false;
 	return rangeError(range) == null && daySpan(range.start, range.end) != null;
 }
 
@@ -74,12 +59,11 @@ export function meetingHref(id: string, origin: string): string {
 }
 
 export async function postMeeting(
-	organisation: string,
 	meetingLabel: string,
 	range: DayRange,
 	includeWeekends: boolean
 ): Promise<{ ok: true; id: string } | { ok: false; error: string | null }> {
-	if (!formReady(organisation, meetingLabel, range)) {
+	if (!formReady(meetingLabel, range)) {
 		const early = range ? rangeError(range) : null;
 		return { ok: false, error: early };
 	}
@@ -89,7 +73,7 @@ export async function postMeeting(
 		res = await fetch('/api/m', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(createBody(organisation, meetingLabel, range, includeWeekends))
+			body: JSON.stringify(createBody(meetingLabel, range, includeWeekends))
 		});
 	} catch {
 		return { ok: false, error: null };

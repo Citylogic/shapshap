@@ -5,7 +5,6 @@
 	import TrustChecks from '$lib/chrome/TrustChecks.svelte';
 	import {
 		LABEL_MAX,
-		ORG_MAX,
 		daySpan,
 		defaultRange,
 		formReady,
@@ -16,7 +15,6 @@
 
 	const initial = defaultRange();
 
-	let organisation = $state('');
 	let meetingLabel = $state('');
 	let startsOn = $state(initial.start);
 	let endsOn = $state(initial.end);
@@ -30,14 +28,14 @@
 		return { start: startsOn, end: endsOn };
 	});
 	let spanError = $derived(range ? rangeError(range) : null);
-	let canCreate = $derived(formReady(organisation, meetingLabel, range) && !busy);
+	let canCreate = $derived(formReady(meetingLabel, range) && !busy);
 
 	async function generate(e: SubmitEvent) {
 		e.preventDefault();
 		if (!range || !canCreate) return;
 		busy = true;
 		error = null;
-		const result = await postMeeting(organisation, meetingLabel, range, weekends);
+		const result = await postMeeting(meetingLabel, range, weekends);
 		busy = false;
 		if (!result.ok) {
 			error = result.error;
@@ -57,17 +55,6 @@
 		</p>
 
 		<form onsubmit={generate}>
-			<label>
-				Organisation / Company
-				<input
-					type="text"
-					name="organisation"
-					maxlength={ORG_MAX}
-					placeholder="ABC Organisation"
-					autocomplete="organization"
-					bind:value={organisation}
-				/>
-			</label>
 			<label>
 				Meeting label
 				<input

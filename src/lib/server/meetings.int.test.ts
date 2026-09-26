@@ -12,7 +12,6 @@ if (!DATABASE_URL) {
 }
 
 const BASE = {
-	organisation: 'Citylogic',
 	meeting_label: 'Standup',
 	starts_on: '2026-08-17',
 	ends_on: '2026-08-21',
@@ -48,16 +47,16 @@ describe('POST create + GET meeting', () => {
 		expect(created.body.starts_on).toBe('2026-08-17');
 		expect(created.body.window_start).toBe('08:00');
 		expect(created.body.slot_minutes).toBe(30);
-		expect(created.body.organisation).toBe('Citylogic');
 		expect(created.body.meeting_label).toBe('Standup');
+		expect(created.body).not.toHaveProperty('organisation');
 		expect(created.body.include_weekends).toBe(false);
 
 		const got = await getMeeting(created.body.id, '192.0.2.1');
 		expect(got.ok).toBe(true);
 		if (!got.ok) return;
 		expect(got.body.meeting.id).toBe(created.body.id);
-		expect(got.body.meeting.organisation).toBe('Citylogic');
 		expect(got.body.meeting.meeting_label).toBe('Standup');
+		expect(got.body.meeting).not.toHaveProperty('organisation');
 		expect(got.body.meeting.include_weekends).toBe(false);
 		expect(got.body.responses).toEqual([]);
 
@@ -130,15 +129,15 @@ describe('POST create + GET meeting', () => {
 		expect(missing).toEqual({ ok: false, status: 404, body: { error: COPY.notFound } });
 	});
 
-	it('requires organisation and meeting_label and defaults the window', async () => {
+	it('requires meeting_label and defaults the window', async () => {
 		const emptyLabel = await createMeeting({ ...BASE, meeting_label: '  ' }, '192.0.2.1');
 		expect(emptyLabel).toEqual({ ok: false, status: 400 });
-		const emptyOrg = await createMeeting({ ...BASE, organisation: '' }, '192.0.2.1');
-		expect(emptyOrg).toEqual({ ok: false, status: 400 });
+		const withOrg = await createMeeting({ ...BASE, organisation: 'Citylogic' }, '192.0.2.1');
+		expect(withOrg.ok).toBe(true);
+		if (withOrg.ok) expect(withOrg.body).not.toHaveProperty('organisation');
 
 		const created = await createMeeting(
 			{
-				organisation: BASE.organisation,
 				meeting_label: BASE.meeting_label,
 				starts_on: BASE.starts_on,
 				ends_on: BASE.ends_on,

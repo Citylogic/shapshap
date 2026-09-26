@@ -3,14 +3,6 @@
  * Slot indices stay in the creator-zone meeting grid; only wall labels move.
  */
 
-export function viewerTz(): string {
-	try {
-		return Temporal.Now.timeZoneId();
-	} catch {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone;
-	}
-}
-
 export function zoneIds(): string[] {
 	try {
 		return Intl.supportedValuesOf('timeZone');

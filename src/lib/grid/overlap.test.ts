@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	densityLevel,
 	displayName,
-	formatPeekWhen,
+	freeIdsAt,
 	mergeLive,
-	peekLists,
 	scoreOverlap
 } from './overlap';
 
@@ -67,30 +66,31 @@ describe('densityLevel', () => {
 	});
 });
 
-describe('peekLists', () => {
-	it('splits answered people into free and not free', () => {
+describe('freeIdsAt', () => {
+	it('returns ids free at the slot', () => {
 		const people = [
 			{ participant_id: 'a', name: 'Aidan C', slots: [0] },
 			{ participant_id: 'b', name: 'Sara M', slots: [0] },
 			{ participant_id: 'c', name: 'Thabo N', slots: [0] },
 			{ participant_id: 'd', name: 'Nomsa D', slots: [1] }
 		];
-		expect(peekLists(people, 0)).toEqual({
-			free: ['Aidan C', 'Sara M', 'Thabo N'],
-			notFree: ['Nomsa D']
-		});
+		expect([...freeIdsAt(people, 0)].sort()).toEqual(['a', 'b', 'c']);
+		expect([...freeIdsAt(people, 1)]).toEqual(['d']);
 	});
 
-	it('labels unnamed answered people as Guest N', () => {
+	it('returns an empty set when nobody opted in', () => {
 		const people = [
-			{ participant_id: 'a', name: null, slots: [0] },
-			{ participant_id: 'b', name: 'Ada L', slots: [] }
+			{ participant_id: 'a', name: 'Ada L', slots: [1] },
+			{ participant_id: 'b', name: null, slots: [] }
 		];
-		expect(peekLists(people, 0)).toEqual({
-			free: ['Guest 1'],
-			notFree: ['Ada L']
-		});
+		expect(freeIdsAt(people, 0).size).toBe(0);
+	});
+});
+
+describe('displayName', () => {
+	it('labels unnamed answered people as Guest N', () => {
 		expect(displayName(null, 2)).toBe('Guest 3');
+		expect(displayName('Ada L', 0)).toBe('Ada L');
 	});
 });
 
@@ -109,11 +109,5 @@ describe('mergeLive', () => {
 		expect(mergeLive([ada], { participant_id: 'a', name: 'Ada L', slots: [0, 1] })).toEqual([
 			{ participant_id: 'a', name: 'Ada L', slots: [0, 1] }
 		]);
-	});
-});
-
-describe('formatPeekWhen', () => {
-	it('formats a civil date and wall time like the §15.4 peek', () => {
-		expect(formatPeekWhen('2026-08-20', '14:00')).toBe('Thu 20 Aug, 14:00');
 	});
 });

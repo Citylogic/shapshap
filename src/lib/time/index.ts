@@ -2,9 +2,9 @@
  * Meeting grid slot generation. Native Temporal only — never Date-object
  * arithmetic for boundaries (PRD §8, TECH-STACK §5).
  *
- * Polyfill skipped (TECH-STACK §11.3): Node 24.14 exposes Temporal behind
- * `--harmony-temporal` (vitest `execArgv`); adding `temporal-polyfill` would spend
- * ~20 KB of the 60 KB `/m/[id]` budget. Revisit if WebKit e2e (S17) lacks Temporal.
+ * Node 24 exposes Temporal behind `--harmony-temporal` (vitest `execArgv`).
+ * Safari / WebKit still lacks it, so `src/hooks.client.ts` loads
+ * `temporal-polyfill/global` before hydrate when `Temporal` is missing.
  */
 
 export type SlotMinutes = 15 | 30 | 60;

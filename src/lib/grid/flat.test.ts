@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GRID_FIXTURE } from './fixture';
 import {
 	columnsOf,
-	formatFlatDay,
 	formatHoursSelected,
 	isToday,
 	laneOf,
@@ -35,13 +34,6 @@ describe('columnsOf', () => {
 		expect(mon?.cells.filter((c) => laneOf(c.slotInDay) === 1).map((c) => c.index)).toEqual([
 			1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23
 		]);
-	});
-});
-
-describe('formatFlatDay', () => {
-	it('formats weekday and upper-case month like the mock', () => {
-		expect(formatFlatDay('2026-08-20')).toEqual({ weekday: 'Thursday', date: '20 AUG' });
-		expect(formatFlatDay('2026-01-01')).toEqual({ weekday: 'Thursday', date: '1 JAN' });
 	});
 });
 

@@ -1,9 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createMeeting, enterDisplayName, fillSetup, takeOverAs } from '../../../../e2e/flow';
 
-test('SSR grid paints and autosaves without a Submit button', async ({ page }) => {
+test('announcement strip opens a new shapshap in another window', async ({ page }) => {
 	await createMeeting(page);
-	await expect(page.getByPlaceholder(/^Guest /)).toBeVisible();
+	const create = page.getByRole('link', { name: 'New Shapshap.link' });
+	await expect(create).toBeVisible();
+	await expect(create).toHaveAttribute('target', '_blank');
+
+	const popupPromise = page.waitForEvent('popup');
+	await create.click();
+	const popup = await popupPromise;
+	await expect(popup.getByRole('heading', { name: 'Find a time that works' })).toBeVisible();
+	await expect(popup).not.toHaveURL(/\/m\//);
+	await popup.close();
+});
+
+test('SSR grid paints and autosaves without a Submit button', async ({ page }) => {
+	const pageErrors: string[] = [];
+	page.on('pageerror', (err) => pageErrors.push(err.message));
+
+	await createMeeting(page);
+	await expect.poll(() => page.evaluate(() => 'Temporal' in globalThis)).toBe(true);
+	expect(pageErrors.filter((m) => /Temporal/i.test(m))).toEqual([]);
+	await expect(page.getByRole('heading', { name: 'When are you free?' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Submit' })).toHaveCount(0);
 	await expect(page.locator('[data-slot="0"]')).toBeVisible();
 
@@ -85,7 +105,27 @@ test('return visit with a saved name skips the entry modal', async ({ page }) =>
 
 	await page.reload();
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	await expect(page.getByPlaceholder(/^Guest /)).toHaveValue('Ada Lovelace');
+	await expect(page.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
+});
+
+test('own avatar opens the name dialog to edit', async ({ page }) => {
+	await createMeeting(page);
+	await page.getByRole('button', { name: 'Ada Lovelace' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('heading', { name: 'Your name' })).toBeVisible();
+	await expect(dialog.getByLabel('First name')).toHaveValue('Ada');
+	await expect(dialog.getByLabel('Last name')).toHaveValue('Lovelace');
+
+	const put = page.waitForRequest((req) => {
+		if (req.method() !== 'PUT' || !/\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())) return false;
+		const body: unknown = req.postDataJSON();
+		return !!body && typeof body === 'object' && 'name' in body && body.name === 'Ada L';
+	});
+	await dialog.getByLabel('Last name').fill('L');
+	await dialog.getByRole('button', { name: 'Save →' }).click();
+	await expect(dialog).toBeHidden();
+	await put;
+	await expect(page.getByRole('button', { name: 'Ada L' })).toBeVisible();
 });
 
 test('malformed meeting link shows the not-found line', async ({ page }) => {
@@ -117,7 +157,6 @@ test('This is me takes over a name without a confirm dialog', async ({
 	browser
 }, testInfo) => {
 	await createMeeting(page);
-	await page.getByPlaceholder(/^Guest /).fill('Ada L');
 	const put = page.waitForRequest((req) => {
 		if (req.method() !== 'PUT' || !/\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())) return false;
 		const body: unknown = req.postDataJSON();
@@ -138,10 +177,10 @@ test('This is me takes over a name without a confirm dialog', async ({
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
 	await enterDisplayName(otherPage, 'Bea', 'Miller');
-	await expect(otherPage.getByRole('button', { name: 'Ada L' })).toBeVisible();
-	await takeOverAs(otherPage, 'Ada L');
+	await expect(otherPage.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
+	await takeOverAs(otherPage, 'Ada Lovelace');
 	await expect(otherPage.getByRole('dialog')).toHaveCount(0);
-	await expect(otherPage.getByPlaceholder(/^Guest /)).toHaveValue('Ada L');
+	await expect(otherPage.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
 	await expect(otherPage.locator('[data-slot="0"]')).toHaveAttribute('aria-selected', 'true');
 	await other.close();
 });
@@ -153,7 +192,6 @@ async function postMeeting(page: Page, tz: string) {
 	const ymd = (d: Date) => d.toISOString().slice(0, 10);
 	const res = await page.request.post('/api/m', {
 		data: {
-			organisation: 'Citylogic',
 			meeting_label: 'Standup',
 			starts_on: ymd(start),
 			ends_on: ymd(end),
@@ -261,7 +299,6 @@ test('second visitor sees live density after the first paints', async ({
 test('expired meeting shows the gone page', async ({ page }) => {
 	const res = await page.request.post('/api/m', {
 		data: {
-			organisation: 'Citylogic',
 			meeting_label: 'Standup',
 			starts_on: '2020-01-06',
 			ends_on: '2020-01-10',

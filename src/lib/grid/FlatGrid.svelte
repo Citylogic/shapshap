@@ -140,7 +140,12 @@
 				<p class="wk">
 					<span class="name">{col.header.weekday}</span>
 					{#if picked > 0}
-						<span class="tick" aria-hidden="true">✓</span>
+						<svg class="tick" viewBox="0 0 16 16" aria-hidden="true">
+							<path
+								fill="currentColor"
+								d="M6.3 12.1 2.2 8l1.4-1.4 2.7 2.7 6.1-6.1L13.8 4.6z"
+							/>
+						</svg>
 					{/if}
 				</p>
 				<p class="when">
@@ -150,7 +155,7 @@
 					{/if}
 				</p>
 				<p class="meta">
-					<span>{formatHoursSelected(picked, slotMinutes)}</span>
+					<span class="hrs">{formatHoursSelected(picked, slotMinutes)}</span>
 					<button
 						type="button"
 						class="clear"
@@ -196,12 +201,14 @@
 						data-density={level || undefined}
 						data-best={isBest ? '' : undefined}
 					>
-						{#if on}
-							<span class="mark" aria-hidden="true">✓</span>
-						{/if}
-						{#if time}
-							<span class="hm">{time.time}</span>
-						{/if}
+						<span class="face">
+							{#if on}
+								<span class="mark" aria-hidden="true">✓</span>
+							{/if}
+							{#if time}
+								<span class="hm">{time.time}</span>
+							{/if}
+						</span>
 					</div>
 				{/each}
 			</div>
@@ -212,21 +219,24 @@
 <style>
 	.days {
 		display: flex;
-		gap: var(--space-5);
+		justify-content: center;
+		gap: var(--space-7);
+		width: 100%;
 		overflow-x: auto;
-		padding: var(--space-2) 0 var(--space-4);
+		padding: var(--space-3) 0 var(--space-4);
 		-webkit-overflow-scrolling: touch;
 		user-select: none;
 	}
 
 	.day {
-		flex: 0 0 auto;
-		width: min(12.5rem, 72vw);
+		flex: 1 1 0;
 		min-width: 10.5rem;
 	}
 
 	.head {
-		margin: 0 0 var(--space-3);
+		margin: 0;
+		padding: var(--space-4) 0 var(--space-5);
+		font-family: var(--font-condensed);
 	}
 
 	.wk,
@@ -238,28 +248,32 @@
 	.wk {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
-		font-size: 1rem;
-		font-weight: 700;
-		line-height: 1.2;
+		gap: 0.4rem;
+		color: var(--ink);
+		font-size: 1.9rem;
+		font-weight: 600;
+		line-height: 1;
+	}
+
+	.name {
+		letter-spacing: 0.01em;
 	}
 
 	.tick {
+		flex: 0 0 auto;
+		width: 2rem;
+		height: 1.5rem;
 		color: var(--accent);
-		font-size: 0.85rem;
 	}
 
 	.when {
-		margin-top: 0.15rem;
-		color: var(--muted);
-		font-size: 0.72rem;
-		font-weight: 650;
-		letter-spacing: 0.04em;
+		margin-top: 0.35rem;
+		color: var(--ink);
+		font-size: 1rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		line-height: 1.2;
 		text-transform: uppercase;
-	}
-
-	.today {
-		font-weight: 700;
 	}
 
 	.meta {
@@ -267,9 +281,14 @@
 		align-items: baseline;
 		justify-content: space-between;
 		gap: var(--space-2);
-		margin-top: var(--space-2);
-		color: var(--muted);
-		font-size: 0.75rem;
+		margin-top: var(--space-4);
+		color: var(--ink);
+		font-size: 0.88rem;
+		font-weight: 400;
+	}
+
+	.hrs {
+		color: var(--ink);
 	}
 
 	.clear {
@@ -277,9 +296,8 @@
 		border: 0;
 		padding: 0;
 		background: transparent;
-		color: inherit;
+		color: var(--muted);
 		font: inherit;
-		font-weight: 650;
 		cursor: pointer;
 	}
 
@@ -291,26 +309,44 @@
 	.lanes {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.35rem;
+		gap: 0.2rem;
 		touch-action: none;
 		cursor: pointer;
 	}
 
 	.cell {
+		box-sizing: border-box;
 		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		min-height: 2.75rem;
-		padding: 0 0.45rem;
-		border-radius: 0.4rem;
-		background: var(--density-0);
+		align-items: stretch;
+		width: 100%;
+		min-height: 2.15rem;
+		padding: 0.22rem 0.32rem;
+		background: transparent;
 		color: var(--ink);
 		font-size: 0.8rem;
 		font-variant-numeric: tabular-nums;
-		font-weight: 550;
+		font-weight: 400;
+	}
+
+	.face {
+		box-sizing: border-box;
+		display: flex;
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		gap: 0.28rem;
+		min-width: 0;
+		padding: 0 0.45rem;
+		border-radius: var(--radius-pill);
+		background: var(--density-0);
 	}
 
 	.cell.gap {
+		pointer-events: none;
+		color: var(--faint);
+	}
+
+	.cell.gap .face {
 		background: var(--bg-soft);
 		background-image: repeating-linear-gradient(
 			-45deg,
@@ -319,36 +355,37 @@
 			rgb(0 0 0 / 0.04) 4px,
 			rgb(0 0 0 / 0.04) 5px
 		);
-		color: var(--faint);
-		pointer-events: none;
 	}
 
-	.cell.d1 {
+	.cell.d1 .face {
 		background: var(--density-1);
 	}
 
-	.cell.d2 {
+	.cell.d2 .face {
 		background: var(--density-2);
 	}
 
-	.cell.d3 {
+	.cell.d3 .face {
 		background: var(--density-3);
 	}
 
-	.cell.d4 {
+	.cell.d4 .face {
 		background: var(--density-4);
 		color: var(--accent-ink);
 	}
 
 	.cell.on {
-		background: var(--self);
-		color: var(--accent-ink);
+		padding: 0;
+	}
+
+	.cell.on .face {
+		border-radius: 5px;
 	}
 
 	.mark {
-		flex-shrink: 0;
-		font-size: 0.7rem;
+		font-size: 0.95rem;
 		line-height: 1;
+		color: currentColor;
 	}
 
 	.hm {

@@ -12,7 +12,6 @@ if (!DATABASE_URL) {
 }
 
 const BASE = {
-	organisation: 'Citylogic',
 	meeting_label: 'Standup',
 	starts_on: '2026-08-17',
 	ends_on: '2026-08-21',

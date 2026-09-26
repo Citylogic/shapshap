@@ -1,7 +1,6 @@
+import { civilDay } from '$lib/civil';
 import { generateSlots, gridSize, type MeetingWindow } from '$lib/time';
 import { wallAt } from './zone';
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
 export type GridDay = {
 	date: string;
@@ -32,19 +31,8 @@ export type GridModel = {
 };
 
 function formatDay(iso: string): GridDay {
-	try {
-		const d = Temporal.PlainDate.from(iso);
-		return {
-			date: iso,
-			weekday: WEEKDAYS[d.dayOfWeek - 1]!,
-			day: d.day
-		};
-	} catch {
-		const day = Number(iso.slice(8, 10));
-		const sun0 = new Date(`${iso}T00:00:00Z`).getUTCDay();
-		const isoDow = sun0 === 0 ? 6 : sun0 - 1;
-		return { date: iso, weekday: WEEKDAYS[isoDow]!, day };
-	}
+	const civil = civilDay(iso);
+	return { date: iso, weekday: civil.weekdayShort, day: civil.day };
 }
 
 function formatTime(hm: string): GridTime {

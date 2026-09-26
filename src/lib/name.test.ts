@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initials, looksLikeContact, parseName } from './name';
+import { initials, looksLikeContact, parseName, splitDisplayName } from './name';
 
 describe('parseName', () => {
 	it('accepts a first and last name', () => {
@@ -26,6 +26,15 @@ describe('parseName', () => {
 		expect(parseName('ada@example.com')).toEqual({ ok: false, reason: 'contact' });
 		expect(parseName('+27 82 123 4567')).toEqual({ ok: false, reason: 'contact' });
 		expect(parseName('0821234567')).toEqual({ ok: false, reason: 'contact' });
+	});
+});
+
+describe('splitDisplayName', () => {
+	it('splits on the first word', () => {
+		expect(splitDisplayName('Ada Lovelace')).toEqual({ first: 'Ada', last: 'Lovelace' });
+		expect(splitDisplayName('  Mary Ann Smith ')).toEqual({ first: 'Mary', last: 'Ann Smith' });
+		expect(splitDisplayName('Ada')).toEqual({ first: 'Ada', last: '' });
+		expect(splitDisplayName('')).toEqual({ first: '', last: '' });
 	});
 });
 

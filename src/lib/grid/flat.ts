@@ -2,32 +2,8 @@
  * Flat day-column view of `GridModel`. Slot indexes stay meeting-grid indexes.
  */
 
+import { civilDay, formatCompactDate } from '$lib/civil';
 import type { GridCell, GridDay, GridModel } from './model';
-
-const WEEKDAYS = [
-	'Monday',
-	'Tuesday',
-	'Wednesday',
-	'Thursday',
-	'Friday',
-	'Saturday',
-	'Sunday'
-] as const;
-
-const MONTHS = [
-	'JAN',
-	'FEB',
-	'MAR',
-	'APR',
-	'MAY',
-	'JUN',
-	'JUL',
-	'AUG',
-	'SEP',
-	'OCT',
-	'NOV',
-	'DEC'
-] as const;
 
 export type FlatDayHeader = {
 	weekday: string;
@@ -61,43 +37,14 @@ export function columnsOf(model: GridModel): FlatDayColumn[] {
 }
 
 export function formatFlatDay(iso: string): FlatDayHeader {
-	try {
-		const d = Temporal.PlainDate.from(iso);
-		return {
-			weekday: WEEKDAYS[d.dayOfWeek - 1]!,
-			date: `${d.day} ${MONTHS[d.month - 1]!}`
-		};
-	} catch {
-		const day = Number(iso.slice(8, 10));
-		const month = Number(iso.slice(5, 7));
-		const sun0 = new Date(`${iso}T00:00:00Z`).getUTCDay();
-		const isoDow = sun0 === 0 ? 7 : sun0;
-		return {
-			weekday: WEEKDAYS[isoDow - 1]!,
-			date: `${day} ${MONTHS[month - 1] ?? ''}`
-		};
-	}
+	return {
+		weekday: civilDay(iso).weekdayLong,
+		date: formatCompactDate(iso)
+	};
 }
 
 export function isToday(iso: string, today: string): boolean {
 	return iso === today;
-}
-
-/** Civil today in `tz`. Display only — not slot-boundary math. */
-export function todayIso(tz: string): string {
-	try {
-		return Temporal.Now.plainDateISO(tz).toString();
-	} catch {
-		const parts = new Intl.DateTimeFormat('en-CA', {
-			timeZone: tz,
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit'
-		}).formatToParts(new Date());
-		const v = (type: Intl.DateTimeFormatPartTypes) =>
-			parts.find((p) => p.type === type)?.value ?? '';
-		return `${v('year')}-${v('month')}-${v('day')}`;
-	}
 }
 
 export function selectedCountForDay(

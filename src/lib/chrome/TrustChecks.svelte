@@ -39,14 +39,25 @@
 
 	.checks li {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: var(--space-2);
 	}
 
 	.checks li::before {
 		content: '✓';
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		flex-shrink: 0;
-		font-weight: 650;
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: 50%;
+		background: var(--accent);
+		color: var(--accent-ink);
+		font-size: 0.7rem;
+		font-weight: 700;
+		line-height: 1;
 	}
 
 	.setup {
@@ -58,6 +69,7 @@
 	.band {
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: center;
 		gap: var(--space-2) var(--space-5);
 	}
 </style>

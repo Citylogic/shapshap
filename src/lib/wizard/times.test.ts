@@ -1,14 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { deviceTz } from '$lib/civil';
 import { COPY } from '$lib/copy';
 import {
 	createBody,
-	creatorTz,
 	daySpan,
 	defaultRange,
 	formReady,
 	LABEL_MAX,
 	meetingHref,
-	ORG_MAX,
 	postMeeting,
 	rangeError
 } from './times';
@@ -35,41 +34,30 @@ describe('defaultRange', () => {
 });
 
 describe('formReady', () => {
-	it('requires org, label, and a valid range of at most 60 days', () => {
+	it('requires a label and a valid range of at most 60 days', () => {
 		const range = { start: '2026-08-17', end: '2026-08-21' };
-		expect(formReady('', 'Standup', range)).toBe(false);
-		expect(formReady('Citylogic', '', range)).toBe(false);
-		expect(formReady('Citylogic', 'Standup', null)).toBe(false);
-		expect(formReady('Citylogic', 'Standup', { start: '2026-08-21', end: '2026-08-17' })).toBe(
-			false
-		);
-		expect(formReady('Citylogic', 'Standup', { start: '2026-01-01', end: '2026-03-02' })).toBe(
-			false
-		);
-		expect(formReady('  Citylogic  ', 'Standup', range)).toBe(true);
+		expect(formReady('', range)).toBe(false);
+		expect(formReady('Standup', null)).toBe(false);
+		expect(formReady('Standup', { start: '2026-08-21', end: '2026-08-17' })).toBe(false);
+		expect(formReady('Standup', { start: '2026-01-01', end: '2026-03-02' })).toBe(false);
+		expect(formReady('  Standup  ', range)).toBe(true);
 	});
 });
 
 describe('createBody', () => {
-	it('sends org, label, days, weekends, and tz, and omits the window', () => {
-		const body = createBody(
-			'Citylogic',
-			'Standup',
-			{ start: '2026-08-17', end: '2026-08-21' },
-			true
-		);
+	it('sends label, days, weekends, and tz, and omits the window', () => {
+		const body = createBody('Standup', { start: '2026-08-17', end: '2026-08-21' }, true);
 		expect(body).toEqual({
-			organisation: 'Citylogic',
 			meeting_label: 'Standup',
 			starts_on: '2026-08-17',
 			ends_on: '2026-08-21',
 			include_weekends: true,
-			tz: creatorTz()
+			tz: deviceTz()
 		});
+		expect(body).not.toHaveProperty('organisation');
 		expect(body).not.toHaveProperty('window_start');
 		expect(body).not.toHaveProperty('window_end');
 		expect(body).not.toHaveProperty('slot_minutes');
-		expect(ORG_MAX).toBe(48);
 		expect(LABEL_MAX).toBe(80);
 	});
 });
@@ -94,7 +82,6 @@ describe('postMeeting', () => {
 		const fetch = vi.fn();
 		vi.stubGlobal('fetch', fetch);
 		const result = await postMeeting(
-			'Citylogic',
 			'Standup',
 			{
 				start: '2026-01-01',
@@ -115,17 +102,13 @@ describe('postMeeting', () => {
 				return Response.json({ id: 'bo-8BXgyGW52K0Fa86o72A' }, { status: 201 });
 			})
 		);
-		const result = await postMeeting(
-			'Citylogic',
-			'Standup',
-			{ start: '2026-08-17', end: '2026-08-21' },
-			false
-		);
+		const result = await postMeeting('Standup', { start: '2026-08-17', end: '2026-08-21' }, false);
 		expect(result).toEqual({ ok: true, id: 'bo-8BXgyGW52K0Fa86o72A' });
 		expect(posted).toMatchObject({
-			organisation: 'Citylogic',
+			meeting_label: 'Standup',
 			include_weekends: false
 		});
+		expect(posted).not.toHaveProperty('organisation');
 		expect(posted).not.toHaveProperty('window_start');
 	});
 
@@ -134,12 +117,7 @@ describe('postMeeting', () => {
 			'fetch',
 			vi.fn(async () => Response.json({ error: COPY.rateLimited }, { status: 429 }))
 		);
-		const result = await postMeeting(
-			'Citylogic',
-			'Standup',
-			{ start: '2026-08-17', end: '2026-08-21' },
-			false
-		);
+		const result = await postMeeting('Standup', { start: '2026-08-17', end: '2026-08-21' }, false);
 		expect(result).toEqual({ ok: false, error: COPY.rateLimited });
 	});
 });
