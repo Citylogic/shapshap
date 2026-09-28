@@ -40,6 +40,10 @@ jobs:
             docker compose pull
             docker compose up -d
             sleep 45
-            docker compose ps --format json | grep -q '"Health":"healthy"' || {
-              echo "healthcheck failed, rolling back"; exit 1; }
+            app_id="$(docker compose ps -q app)"
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$app_id")"
+            if [ "$status" != healthy ]; then
+              echo "app health is ${status}"
+              exit 1
+            fi
             docker image prune -f

@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	densityLevel,
-	displayName,
-	freeIdsAt,
-	mergeLive,
-	scoreOverlap
-} from './overlap';
+import { densityLevel, displayName, freeIdsAt, mergeLive, scoreOverlap } from './overlap';
 
 describe('scoreOverlap', () => {
 	it('counts per slot and marks the unique max as Best', () => {

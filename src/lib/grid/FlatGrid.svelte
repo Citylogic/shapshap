@@ -141,10 +141,7 @@
 					<span class="name">{col.header.weekday}</span>
 					{#if picked > 0}
 						<svg class="tick" viewBox="0 0 16 16" aria-hidden="true">
-							<path
-								fill="currentColor"
-								d="M6.3 12.1 2.2 8l1.4-1.4 2.7 2.7 6.1-6.1L13.8 4.6z"
-							/>
+							<path fill="currentColor" d="M6.3 12.1 2.2 8l1.4-1.4 2.7 2.7 6.1-6.1L13.8 4.6z" />
 						</svg>
 					{/if}
 				</p>
