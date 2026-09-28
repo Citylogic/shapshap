@@ -201,17 +201,26 @@ describe('PUT / DELETE responses', () => {
 		expect(missing).toEqual({ ok: false, status: 404, body: { error: COPY.notFound } });
 	});
 
-	it('requires first and last name and stores one display string', async () => {
+	it('stores a display name, including one word', async () => {
 		const created = await createMeeting(BASE, '192.0.2.1');
 		expect(created.ok).toBe(true);
 		if (!created.ok) return;
 		const missing = await putResponse(
 			created.body.id,
 			newId(),
-			{ name: 'Ada', slots: [0] },
+			{ name: '  ', slots: [0] },
 			'192.0.2.1'
 		);
 		expect(missing).toEqual({ ok: false, status: 400 });
+		const one = await putResponse(
+			created.body.id,
+			newId(),
+			{ name: 'Ada', slots: [0] },
+			'192.0.2.1'
+		);
+		expect(one.ok).toBe(true);
+		if (!one.ok) return;
+		expect(one.body.name).toBe('Ada');
 		const full = await putResponse(
 			created.body.id,
 			newId(),

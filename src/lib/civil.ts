@@ -14,6 +14,8 @@ const WEEKDAYS = [
 	{ short: 'Sun', long: 'Sunday' }
 ] as const;
 
+export const WEEKDAY_SHORT = WEEKDAYS.map((day) => day.short);
+
 /** One list. Upper and title case are applied when formatting. */
 const MONTHS = [
 	'jan',
@@ -28,6 +30,21 @@ const MONTHS = [
 	'oct',
 	'nov',
 	'dec'
+] as const;
+
+const MONTHS_LONG = [
+	'January',
+	'February',
+	'March',
+	'April',
+	'May',
+	'June',
+	'July',
+	'August',
+	'September',
+	'October',
+	'November',
+	'December'
 ] as const;
 
 export type MonthStyle = 'upper' | 'title';
@@ -109,6 +126,33 @@ export function formatDateRange(
 		return `${start.day}–${end.day} ${monthLabel(start.month, style)}`;
 	}
 	return `${formatCompactDate(startsOn, style)}–${formatCompactDate(endsOn, style)}`;
+}
+
+/** `September 2026` for the range picker heading. */
+export function formatMonthYear(year: number, month: number): string {
+	return `${MONTHS_LONG[month - 1] ?? ''} ${year}`;
+}
+
+/** `26 September 2026` for a day button name. */
+export function formatDayLong(iso: string): string {
+	const d = parseCivilDate(iso);
+	return `${d.day} ${MONTHS_LONG[d.month - 1] ?? ''} ${d.year}`;
+}
+
+/**
+ * Closed field: `26 Sep – 3 Oct 2026`.
+ * The year is repeated on both ends only when the range crosses a year.
+ */
+export function formatRangeLabel(startsOn: string, endsOn: string): string {
+	const start = parseCivilDate(startsOn);
+	const end = parseCivilDate(endsOn);
+	const left = formatCompactDate(startsOn, 'title');
+	const right = formatCompactDate(endsOn, 'title');
+	if (start.year === end.year) {
+		if (startsOn === endsOn) return `${left} ${start.year}`;
+		return `${left} – ${right} ${start.year}`;
+	}
+	return `${left} ${start.year} – ${right} ${end.year}`;
 }
 
 /** Civil today in `tz`. Display only — not slot-boundary math. */

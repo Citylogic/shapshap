@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import Footer from '$lib/chrome/Footer.svelte';
 	import TrustChecks from '$lib/chrome/TrustChecks.svelte';
+	import DateRangeField from '$lib/wizard/DateRangeField.svelte';
 	import {
 		LABEL_MAX,
 		daySpan,
@@ -10,6 +11,7 @@
 		formReady,
 		postMeeting,
 		rangeError,
+		rangeIncludesWeekend,
 		type DayRange
 	} from '$lib/wizard/times';
 
@@ -28,6 +30,7 @@
 		return { start: startsOn, end: endsOn };
 	});
 	let spanError = $derived(range ? rangeError(range) : null);
+	let showWeekends = $derived(range != null && rangeIncludesWeekend(range.start, range.end));
 	let canCreate = $derived(formReady(meetingLabel, range) && !busy);
 
 	async function generate(e: SubmitEvent) {
@@ -35,7 +38,7 @@
 		if (!range || !canCreate) return;
 		busy = true;
 		error = null;
-		const result = await postMeeting(meetingLabel, range, weekends);
+		const result = await postMeeting(meetingLabel, range, showWeekends && weekends);
 		busy = false;
 		if (!result.ok) {
 			error = result.error;
@@ -46,17 +49,26 @@
 </script>
 
 <div class="page">
-	<main>
-		<p class="wordmark">SHAPSHAP</p>
-		<h1>Find a time that works</h1>
-		<p class="sub">
-			Generate a shareable link where everyone marks when they're free to meet. No accounts, no
-			back-and-forth.
-		</p>
+	<div class="pitch">
+		<div class="stack">
+			<div class="lead">
+				<p class="wordmark">SHAPSHAP</p>
+				<h1>Find a time that works</h1>
+				<p class="sub">
+					Generate a shareable link where everyone marks when they're free to meet. No accounts, no
+					back-and-forth.
+				</p>
+			</div>
+			<TrustChecks variant="setup" />
+		</div>
+		<Footer home />
+	</div>
 
+	<main>
+		<h2>Create your link</h2>
 		<form onsubmit={generate}>
 			<label>
-				Meeting label
+				Label
 				<input
 					type="text"
 					name="meeting_label"
@@ -66,33 +78,31 @@
 					bind:value={meetingLabel}
 				/>
 			</label>
-			<div class="dates">
-				<label>
-					Start date
-					<input type="date" name="starts_on" bind:value={startsOn} />
-				</label>
-				<label>
-					End date
-					<input type="date" name="ends_on" bind:value={endsOn} />
-				</label>
-			</div>
-			<div class="weekends">
-				<div>
-					<p class="wk-label" id="weekends-label">Include weekends</p>
-					<p class="hint" id="weekends-hint">Saturday and Sunday appear as columns.</p>
+			<DateRangeField bind:start={startsOn} bind:end={endsOn} />
+			{#if showWeekends}
+				<div class="weekends">
+					<p class="wk-label">
+						<span id="weekends-label">Include weekends</span><button
+							type="button"
+							class="q"
+							aria-describedby="weekends-hint">?</button
+						>
+						<span id="weekends-hint" class="tip" role="tooltip"
+							>Saturdays and Sundays appear as columns.</span
+						>
+					</p>
+					<button
+						type="button"
+						class="toggle"
+						role="switch"
+						aria-checked={weekends}
+						aria-labelledby="weekends-label"
+						onclick={() => (weekends = !weekends)}
+					>
+						<span class="knob"></span>
+					</button>
 				</div>
-				<button
-					type="button"
-					class="toggle"
-					role="switch"
-					aria-checked={weekends}
-					aria-labelledby="weekends-label"
-					aria-describedby="weekends-hint"
-					onclick={() => (weekends = !weekends)}
-				>
-					<span class="knob"></span>
-				</button>
-			</div>
+			{/if}
 			{#if spanError}
 				<p class="err">{spanError}</p>
 			{:else if error}
@@ -100,11 +110,7 @@
 			{/if}
 			<button type="submit" class="go" disabled={!canCreate}>Generate shareable link →</button>
 		</form>
-
-		<TrustChecks variant="setup" />
 	</main>
-
-	<Footer />
 </div>
 
 <style>
@@ -114,25 +120,32 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		background: var(--bg);
+		gap: var(--space-5);
+		background: #f8f8f8;
 		color: var(--ink);
 		font-family: var(--font-sans);
 	}
 
-	main {
+	.pitch,
+	.stack,
+	.lead {
+		display: contents;
+	}
+
+	.wordmark,
+	h1,
+	.sub,
+	main,
+	.stack :global(.checks) {
 		box-sizing: border-box;
-		flex: 1;
-		width: 100%;
+		width: calc(100% - 2 * var(--space-5));
 		max-width: 26rem;
-		margin: 0 auto;
-		padding: var(--space-7) var(--space-5) var(--space-6);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-5);
+		margin-inline: auto;
 	}
 
 	.wordmark {
-		margin: 0;
+		margin: 0 auto;
+		padding-top: var(--space-7);
 		text-align: center;
 		font-size: 0.7rem;
 		font-weight: 650;
@@ -140,7 +153,7 @@
 	}
 
 	h1 {
-		margin: 0;
+		margin: 0 auto;
 		text-align: center;
 		font-size: 1.85rem;
 		font-weight: 700;
@@ -149,11 +162,61 @@
 	}
 
 	.sub {
-		margin: 0;
+		margin: 0 auto;
 		text-align: center;
-		color: var(--muted);
+		color: var(--ink);
 		font-size: 0.95rem;
 		line-height: 1.45;
+	}
+
+	main {
+		order: 1;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-5);
+		border-radius: 1.25rem;
+		background: var(--bg);
+		box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	h2 {
+		margin: 0;
+		font-size: 1.15rem;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+
+	.stack :global(.checks) {
+		order: 2;
+		padding-bottom: var(--space-2);
+	}
+
+	.stack :global(.checks li::before) {
+		background: var(--bg);
+		color: var(--accent);
+	}
+
+	.pitch :global(footer) {
+		order: 3;
+		background: transparent;
+		color: var(--ink);
+	}
+
+	.pitch :global(footer .inner) {
+		border-top-color: color-mix(in srgb, var(--ink) 28%, transparent);
+	}
+
+	.pitch :global(footer .dot) {
+		color: color-mix(in srgb, var(--ink) 45%, transparent);
+	}
+
+	.page :global(:focus-visible) {
+		outline-color: var(--ink);
+	}
+
+	.page main :global(:focus-visible) {
+		outline-color: var(--accent);
 	}
 
 	form {
@@ -172,8 +235,7 @@
 		font-weight: 600;
 	}
 
-	input[type='text'],
-	input[type='date'] {
+	input[type='text'] {
 		appearance: none;
 		box-sizing: border-box;
 		width: 100%;
@@ -188,29 +250,71 @@
 		padding: 0.85rem 1rem;
 	}
 
-	.dates {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-4);
-	}
-
 	.weekends {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-4);
+		container-type: inline-size;
 	}
 
-	.wk-label,
-	.hint {
+	.wk-label {
+		position: relative;
+		flex-direction: row;
+		align-items: center;
+		gap: var(--space-2);
 		margin: 0;
+		font-size: 1rem;
+		font-weight: 450;
 	}
 
-	.hint {
-		color: var(--muted);
-		font-size: 0.8rem;
-		font-weight: 400;
+	.q {
+		appearance: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-sizing: border-box;
+		width: 1.15rem;
+		height: 1.15rem;
+		margin: 0;
+		padding: 0;
+		border: 1px solid currentColor;
+		border-radius: var(--radius-pill);
+		background: none;
+		color: inherit;
+		font: inherit;
+		font-size: 0.72rem;
+		font-weight: 650;
+		line-height: 1;
+		cursor: help;
+	}
+
+	.tip {
+		position: absolute;
+		z-index: 1;
+		top: 50%;
+		left: calc(100% + var(--space-2));
+		box-sizing: border-box;
+		width: max-content;
+		max-width: min(14rem, calc(100cqi - 100% - 3.75rem));
+		margin: 0;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius);
+		background: var(--ink);
+		color: var(--bg);
+		font-size: 0.75rem;
+		font-weight: 450;
 		line-height: 1.35;
+		text-wrap: balance;
+		transform: translateY(-50%);
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.q:hover + .tip,
+	.q:focus-visible + .tip {
+		opacity: 1;
 	}
 
 	.toggle {

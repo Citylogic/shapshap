@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { COPY } from '$lib/copy';
-	import { NAME_MAX, parseName, splitDisplayName } from '$lib/name';
+	import { NAME_MAX, initials, parseName } from '$lib/name';
 
 	type Props = {
 		mode?: 'entry' | 'rename';
@@ -12,14 +12,13 @@
 
 	let { mode = 'entry', initialName = '', onContinue, onDismiss }: Props = $props();
 
-	const seed = untrack(() => splitDisplayName(initialName));
 	let dialog = $state<HTMLDialogElement | undefined>();
-	let first = $state(seed.first);
-	let last = $state(seed.last);
+	let name = $state(untrack(() => initialName));
 	let err = $state<string | null>(null);
 
-	let parsed = $derived(parseName(`${first} ${last}`));
-	let canGo = $derived(first.trim() !== '' && last.trim() !== '' && parsed.ok);
+	let parsed = $derived(parseName(name));
+	let mark = $derived(initials(name));
+	let canGo = $derived(parsed.ok);
 	let editing = $derived(mode === 'rename');
 
 	$effect(() => {
@@ -66,24 +65,13 @@
 			</p>
 		{/if}
 		<label>
-			First name
-			<input
-				type="text"
-				name="first"
-				maxlength={NAME_MAX}
-				autocomplete="given-name"
-				bind:value={first}
-			/>
-		</label>
-		<label>
-			Last name
-			<input
-				type="text"
-				name="last"
-				maxlength={NAME_MAX}
-				autocomplete="family-name"
-				bind:value={last}
-			/>
+			Your name
+			<span class="field">
+				<input type="text" name="name" maxlength={NAME_MAX} autocomplete="name" bind:value={name} />
+				{#if mark}
+					<span class="badge" aria-hidden="true">{mark}</span>
+				{/if}
+			</span>
 		</label>
 		{#if err}
 			<p class="err">{err}</p>
@@ -139,6 +127,11 @@
 		font-weight: 600;
 	}
 
+	.field {
+		position: relative;
+		display: block;
+	}
+
 	input {
 		appearance: none;
 		box-sizing: border-box;
@@ -151,7 +144,25 @@
 		font: inherit;
 		font-size: 1rem;
 		font-weight: 400;
-		padding: 0.85rem 1rem;
+		padding: 0.85rem 3.4rem 0.85rem 1rem;
+	}
+
+	.badge {
+		position: absolute;
+		top: 50%;
+		right: 0.45rem;
+		display: grid;
+		place-items: center;
+		width: 2.35rem;
+		height: 2.35rem;
+		border-radius: 5px;
+		background: var(--line);
+		color: var(--ink);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		transform: translateY(-50%);
+		pointer-events: none;
 	}
 
 	.err {

@@ -26,8 +26,8 @@ export function availableCountLabel(free: number, total: number): string {
 }
 
 /**
- * Two-letter initials when the display name has first + last; otherwise G1-style
- * from answer order so the strip always has a mark.
+ * Two-letter mark from the display name; otherwise G1-style from answer
+ * order so the strip always has a mark.
  */
 export function respondentMark(name: string | null, index: number): string {
 	if (name) {

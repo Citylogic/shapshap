@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { initials, looksLikeContact, parseName, splitDisplayName } from './name';
 
 describe('parseName', () => {
-	it('accepts a first and last name', () => {
+	it('accepts a display name, including one word', () => {
+		expect(parseName('Ada')).toEqual({ ok: true, name: 'Ada' });
 		expect(parseName('Ada Lovelace')).toEqual({ ok: true, name: 'Ada Lovelace' });
 		expect(parseName('  Ada   L  ')).toEqual({ ok: true, name: 'Ada L' });
 	});
 
-	it('rejects missing, blank, or a single word', () => {
+	it('rejects missing or blank', () => {
 		expect(parseName(undefined)).toEqual({ ok: false, reason: 'missing' });
 		expect(parseName(null)).toEqual({ ok: false, reason: 'missing' });
 		expect(parseName('  ')).toEqual({ ok: false, reason: 'missing' });
-		expect(parseName('Ada')).toEqual({ ok: false, reason: 'missing' });
 	});
 
 	it('rejects over 40 characters with a length reason', () => {
@@ -39,10 +39,16 @@ describe('splitDisplayName', () => {
 });
 
 describe('initials', () => {
+	it('uses the first two letters of one word', () => {
+		expect(initials('Ada')).toBe('AD');
+		expect(initials('Bo')).toBe('BO');
+		expect(initials('A')).toBe('A');
+		expect(initials('')).toBe('');
+	});
+
 	it('takes the first letter of the first and last words', () => {
 		expect(initials('Ada Lovelace')).toBe('AL');
 		expect(initials('Mary Ann Smith')).toBe('MS');
-		expect(initials('Ada')).toBe('');
 	});
 });
 

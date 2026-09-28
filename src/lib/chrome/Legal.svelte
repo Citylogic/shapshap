@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { REPO } from '$lib/copy';
 	import Footer from './Footer.svelte';
+	import LegalCopy from './LegalCopy.svelte';
 
 	type Props = {
 		title: string;
@@ -14,17 +14,7 @@
 
 <div class="page">
 	<main>
-		{#if lead}
-			<p class="lead">{lead}</p>
-		{:else}
-			<h1>{title}</h1>
-		{/if}
-		{#each blocks as block (block)}
-			<p>{block}</p>
-		{/each}
-		{#if repo}
-			<p>Run your own: <a href="https://{REPO}">{REPO}</a></p>
-		{/if}
+		<LegalCopy {title} {lead} {blocks} {repo} />
 	</main>
 	<Footer />
 </div>
@@ -51,24 +41,5 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.1rem;
-	}
-
-	h1,
-	.lead {
-		margin: 0;
-		font-size: 1.75rem;
-		font-weight: 650;
-		letter-spacing: -0.02em;
-		line-height: 1.2;
-	}
-
-	p {
-		margin: 0;
-		font-size: 1rem;
-		line-height: 1.45;
-	}
-
-	a {
-		color: inherit;
 	}
 </style>

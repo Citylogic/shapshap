@@ -5,7 +5,7 @@ export const COPY = {
 	over60: "That's more than 60 days. Pick a shorter stretch.",
 	rateLimited: 'Too many at once. Try in a minute.',
 	full: "This one's full at 50 people.",
-	contact: 'First and last name is plenty.',
+	contact: 'A name is plenty.',
 	offline: "Not saved — you're offline.",
 	goneTitle: "This one's gone.",
 	goneKeep: 'Meetings are deleted 24 hours after the last time slot.',
@@ -15,6 +15,8 @@ export const COPY = {
 } as const;
 
 export const REPO = 'github.com/Citylogic/shapshap';
+
+export const WHY_TITLE = 'How it works';
 
 export const WHY_LEAD = 'No accounts, and not much kept.';
 
@@ -26,7 +28,7 @@ export const PRIVACY_TITLE = 'Privacy Policy';
 export const WHY_BLOCKS = [
 	"You never sign in and we never ask for an email address. A meeting is a link. Anyone who has that link can see it, change it, or delete it — including other people's answers. Send it to people you'd meet.",
 	"We store the meeting label, the days and times you picked, the name each person types, and the slots they marked. We can read that. It's on one server in London, it isn't sold or shared, and it isn't used for anything except showing you the overlap.",
-	"Use a first and last name. The meeting label is visible to anyone with the link — don't put anything there you wouldn't say in the group.",
+	"Use your name. The meeting label is visible to anyone with the link — don't put anything there you wouldn't say in the group.",
 	"We keep server logs to run the service, with the meeting's ID stripped out of them. We do not log names or meeting label. We rate-limit by IP address to stop abuse; those addresses stay in memory for a minute and aren't stored.",
 	'Everything is deleted 24 hours after the last time slot, and gone from our backups within 30 days.',
 	"Lose the link and the meeting is gone. There's no recovery, and no way for us to find it for you."

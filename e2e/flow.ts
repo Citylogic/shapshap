@@ -1,17 +1,16 @@
 import { expect, type Page } from '@playwright/test';
 
 export async function fillSetup(page: Page, opts: { label?: string; weekends?: boolean } = {}) {
-	await page.getByLabel('Meeting label').fill(opts.label ?? 'Q4 planning sync');
+	await page.getByLabel('Label').fill(opts.label ?? 'Q4 planning sync');
 	if (opts.weekends) {
 		await page.getByRole('switch', { name: 'Include weekends' }).click();
 	}
 }
 
-export async function enterDisplayName(page: Page, first = 'Ada', last = 'Lovelace') {
+export async function enterDisplayName(page: Page, name = 'Ada Lovelace') {
 	const dialog = page.getByRole('dialog');
 	await expect(dialog).toBeVisible();
-	await dialog.getByLabel('First name').fill(first);
-	await dialog.getByLabel('Last name').fill(last);
+	await dialog.getByLabel('Your name').fill(name);
 	await dialog.getByRole('button', { name: 'Continue →' }).click();
 	await expect(dialog).toBeHidden();
 }

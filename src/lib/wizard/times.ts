@@ -25,6 +25,19 @@ export function daySpan(startsOn: string, endsOn: string): number | null {
 	}
 }
 
+/** True when the inclusive range contains a Saturday or Sunday. */
+export function rangeIncludesWeekend(startsOn: string, endsOn: string): boolean {
+	const span = daySpan(startsOn, endsOn);
+	if (span == null) return false;
+	if (span >= 7) return true;
+	const start = Temporal.PlainDate.from(startsOn);
+	for (let i = 0; i < span; i++) {
+		const dow = start.add({ days: i }).dayOfWeek;
+		if (dow === 6 || dow === 7) return true;
+	}
+	return false;
+}
+
 export function defaultRange(today = Temporal.Now.plainDateISO()): DayRange {
 	return { start: today.toString(), end: today.add({ days: 7 }).toString() };
 }

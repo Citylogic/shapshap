@@ -9,7 +9,8 @@ import {
 	LABEL_MAX,
 	meetingHref,
 	postMeeting,
-	rangeError
+	rangeError,
+	rangeIncludesWeekend
 } from './times';
 
 describe('daySpan / rangeError', () => {
@@ -21,6 +22,20 @@ describe('daySpan / rangeError', () => {
 		expect(daySpan('2026-08-21', '2026-08-17')).toBeNull();
 		expect(rangeError({ start: '2026-01-01', end: '2026-03-01' })).toBeNull();
 		expect(rangeError({ start: '2026-01-01', end: '2026-03-02' })).toBe(COPY.over60);
+	});
+});
+
+describe('rangeIncludesWeekend', () => {
+	it('is false for a weekday span and a reversed range', () => {
+		expect(rangeIncludesWeekend('2026-08-17', '2026-08-21')).toBe(false);
+		expect(rangeIncludesWeekend('2026-08-21', '2026-08-17')).toBe(false);
+	});
+
+	it('is true for a Saturday, a Sunday, or a span that crosses them', () => {
+		expect(rangeIncludesWeekend('2026-08-22', '2026-08-22')).toBe(true);
+		expect(rangeIncludesWeekend('2026-08-16', '2026-08-16')).toBe(true);
+		expect(rangeIncludesWeekend('2026-08-21', '2026-08-24')).toBe(true);
+		expect(rangeIncludesWeekend('2026-08-17', '2026-08-23')).toBe(true);
 	});
 });
 

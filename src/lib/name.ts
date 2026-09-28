@@ -1,5 +1,5 @@
 /**
- * First + last name. Client and server share this so the entry modal can
+ * Display name. Client and server share this so the entry modal can
  * reject before send and the PUT handler still enforces it (PRD §5.2, §10).
  */
 
@@ -31,23 +31,28 @@ export function splitDisplayName(name: string): { first: string; last: string } 
 	return { first, last };
 }
 
-/** Two-letter initials from the first and last words of a display name. */
+/**
+ * Two letters for the respondent badge. One word uses its first two letters.
+ * Two or more words use the first letter of the first and last words.
+ */
 export function initials(name: string): string {
 	const parts = name.trim().split(/\s+/).filter(Boolean);
-	const first = parts[0]?.[0];
-	const last = parts.length >= 2 ? parts[parts.length - 1]?.[0] : undefined;
+	const firstWord = parts[0];
+	if (!firstWord) return '';
+	if (parts.length === 1) return firstWord.slice(0, 2).toUpperCase();
+	const lastWord = parts[parts.length - 1];
+	const first = firstWord[0];
+	const last = lastWord?.[0];
 	if (!first || !last) return '';
 	return (first + last).toUpperCase();
 }
 
-/** First + last required. Empty / one word → missing. Contact-shaped or over cap → reject. */
+/** Non-empty display name. Contact-shaped or over cap → reject. */
 export function parseName(raw: string | null | undefined): NameParse {
 	if (raw == null) return { ok: false, reason: 'missing' };
 	const name = raw.trim().replace(/\s+/g, ' ');
 	if (name === '') return { ok: false, reason: 'missing' };
 	if (looksLikeContact(name)) return { ok: false, reason: 'contact' };
-	const parts = name.split(' ');
-	if (parts.length < 2) return { ok: false, reason: 'missing' };
 	if (name.length > NAME_MAX) return { ok: false, reason: 'length' };
 	return { ok: true, name };
 }

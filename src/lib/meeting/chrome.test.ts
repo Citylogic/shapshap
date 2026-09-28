@@ -28,15 +28,15 @@ describe('formatMeetingMeta', () => {
 });
 
 describe('respondentMark', () => {
-	it('uses first and last initials when both exist', () => {
+	it('uses a two-letter mark from the display name', () => {
 		expect(respondentMark('Ada Lovelace', 0)).toBe('AL');
 		expect(respondentMark('Mary Ann Smith', 4)).toBe('MS');
+		expect(respondentMark('Ada', 2)).toBe('AD');
 	});
 
-	it('falls back to G1-style for unnamed or one-word names', () => {
+	it('falls back to G1-style for unnamed people', () => {
 		expect(respondentMark(null, 0)).toBe('G1');
 		expect(respondentMark('', 1)).toBe('G2');
-		expect(respondentMark('Ada', 2)).toBe('G3');
 	});
 });
 

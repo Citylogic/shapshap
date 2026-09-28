@@ -68,7 +68,7 @@ test('Clear drops only that day and autosaves', async ({ page }) => {
 	await expect(page.getByText('Shap', { exact: true })).toBeVisible();
 });
 
-test('new visitor is gated by the entry modal until first and last name', async ({ page }) => {
+test('new visitor is gated by the entry modal until they give a name', async ({ page }) => {
 	await page.goto('/');
 	await fillSetup(page);
 	await page.getByRole('button', { name: 'Generate shareable link →' }).click();
@@ -78,9 +78,11 @@ test('new visitor is gated by the entry modal until first and last name', async 
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByRole('heading', { name: 'When are you free?' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
-	await page.getByLabel('First name').fill('Ada');
-	await expect(page.getByRole('button', { name: 'Continue →' })).toBeDisabled();
-	await page.getByLabel('Last name').fill('Lovelace');
+	await page.getByLabel('Your name').fill('Ada');
+	await expect(page.getByRole('button', { name: 'Continue →' })).toBeEnabled();
+	await expect(dialog.getByText('AD', { exact: true })).toBeVisible();
+	await page.getByLabel('Your name').fill('Ada Lovelace');
+	await expect(dialog.getByText('AL', { exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Continue →' })).toBeEnabled();
 
 	const put = page.waitForRequest((req) => {
@@ -113,15 +115,14 @@ test('own avatar opens the name dialog to edit', async ({ page }) => {
 	await page.getByRole('button', { name: 'Ada Lovelace' }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByRole('heading', { name: 'Your name' })).toBeVisible();
-	await expect(dialog.getByLabel('First name')).toHaveValue('Ada');
-	await expect(dialog.getByLabel('Last name')).toHaveValue('Lovelace');
+	await expect(dialog.getByLabel('Your name')).toHaveValue('Ada Lovelace');
 
 	const put = page.waitForRequest((req) => {
 		if (req.method() !== 'PUT' || !/\/api\/m\/[A-Za-z0-9_-]{22}\/r\//.test(req.url())) return false;
 		const body: unknown = req.postDataJSON();
 		return !!body && typeof body === 'object' && 'name' in body && body.name === 'Ada L';
 	});
-	await dialog.getByLabel('Last name').fill('L');
+	await dialog.getByLabel('Your name').fill('Ada L');
 	await dialog.getByRole('button', { name: 'Save →' }).click();
 	await expect(dialog).toBeHidden();
 	await put;
@@ -176,7 +177,7 @@ test('This is me takes over a name without a confirm dialog', async ({
 	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
-	await enterDisplayName(otherPage, 'Bea', 'Miller');
+	await enterDisplayName(otherPage, 'Bea Miller');
 	await expect(otherPage.getByRole('button', { name: 'Ada Lovelace' })).toBeVisible();
 	await takeOverAs(otherPage, 'Ada Lovelace');
 	await expect(otherPage.getByRole('dialog')).toHaveCount(0);
@@ -260,7 +261,7 @@ test('second visitor sees overlap after copy-link and paint', async ({
 	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
-	await enterDisplayName(otherPage, 'Bea', 'Miller');
+	await enterDisplayName(otherPage, 'Bea Miller');
 	const cell = otherPage.locator('[data-slot="0"]');
 	await expect(cell).toHaveAttribute('data-density', /[1-4]/);
 	await expect(otherPage.getByText('2 RESPONDENTS')).toBeVisible();
@@ -279,7 +280,7 @@ test('second visitor sees live density after the first paints', async ({
 	const other = await browser.newContext(testInfo.project.use);
 	const otherPage = await other.newPage();
 	await otherPage.goto(url);
-	await enterDisplayName(otherPage, 'Bea', 'Miller');
+	await enterDisplayName(otherPage, 'Bea Miller');
 	await expect(otherPage.getByText('1 RESPONDENT')).toBeVisible();
 	const cell = otherPage.locator('[data-slot="0"]');
 	await expect(cell).not.toHaveAttribute('data-density');
